@@ -29,16 +29,13 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import ModelOutput, auto_docstring, logging
 from .configuration_focalnet import FocalNetConfig
 
-
 logger = logging.get_logger(__name__)
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     FocalNet encoder's outputs, with potential hidden states.
-    """
-)
+    """)
 class FocalNetEncoderOutput(ModelOutput):
     r"""
     reshaped_hidden_states (`tuple(torch.FloatTensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
@@ -55,11 +52,9 @@ class FocalNetEncoderOutput(ModelOutput):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     FocalNet model's outputs that also contains a pooling of the last hidden states.
-    """
-)
+    """)
 class FocalNetModelOutput(ModelOutput):
     r"""
     pooler_output (`torch.FloatTensor` of shape `(batch_size, hidden_size)`, *optional*, returned when `add_pooling_layer=True` is passed):
@@ -79,11 +74,9 @@ class FocalNetModelOutput(ModelOutput):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     FocalNet masked image model outputs.
-    """
-)
+    """)
 class FocalNetMaskedImageModelingOutput(ModelOutput):
     r"""
     loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `bool_masked_pos` is provided):
@@ -105,11 +98,9 @@ class FocalNetMaskedImageModelingOutput(ModelOutput):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     FocalNet outputs for image classification.
-    """
-)
+    """)
 class FocalNetImageClassifierOutput(ModelOutput):
     r"""
     loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -148,13 +139,19 @@ class FocalNetEmbeddings(nn.Module):
             is_stem=True,
         )
         self.patch_grid = self.patch_embeddings.grid_size
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, config.embed_dim)) if use_mask_token else None
+        self.mask_token = (
+            nn.Parameter(torch.zeros(1, 1, config.embed_dim))
+            if use_mask_token
+            else None
+        )
 
         self.norm = nn.LayerNorm(config.embed_dim, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(
-        self, pixel_values: torch.FloatTensor | None, bool_masked_pos: torch.BoolTensor | None = None
+        self,
+        pixel_values: torch.FloatTensor | None,
+        bool_masked_pos: torch.BoolTensor | None = None,
     ) -> tuple[torch.Tensor]:
         embeddings, output_dimensions = self.patch_embeddings(pixel_values)
         embeddings = self.norm(embeddings)
@@ -183,14 +180,27 @@ class FocalNetPatchEmbeddings(nn.Module):
         is_stem=False,
     ):
         super().__init__()
-        image_size = image_size if isinstance(image_size, collections.abc.Iterable) else (image_size, image_size)
-        patch_size = patch_size if isinstance(patch_size, collections.abc.Iterable) else (patch_size, patch_size)
-        num_patches = (image_size[1] // patch_size[1]) * (image_size[0] // patch_size[0])
+        image_size = (
+            image_size
+            if isinstance(image_size, collections.abc.Iterable)
+            else (image_size, image_size)
+        )
+        patch_size = (
+            patch_size
+            if isinstance(patch_size, collections.abc.Iterable)
+            else (patch_size, patch_size)
+        )
+        num_patches = (image_size[1] // patch_size[1]) * (
+            image_size[0] // patch_size[0]
+        )
         self.image_size = image_size
         self.patch_size = patch_size
         self.num_channels = num_channels
         self.num_patches = num_patches
-        self.grid_size = (image_size[0] // patch_size[0], image_size[1] // patch_size[1])
+        self.grid_size = (
+            image_size[0] // patch_size[0],
+            image_size[1] // patch_size[1],
+        )
 
         if use_conv_embed:
             # if we choose to use conv embedding, then we treat the stem and non-stem differently
@@ -203,10 +213,16 @@ class FocalNetPatchEmbeddings(nn.Module):
                 padding = 1
                 stride = 2
             self.projection = nn.Conv2d(
-                num_channels, embed_dim, kernel_size=kernel_size, stride=stride, padding=padding
+                num_channels,
+                embed_dim,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
             )
         else:
-            self.projection = nn.Conv2d(num_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+            self.projection = nn.Conv2d(
+                num_channels, embed_dim, kernel_size=patch_size, stride=patch_size
+            )
 
         if add_norm:
             self.norm = nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
@@ -222,7 +238,9 @@ class FocalNetPatchEmbeddings(nn.Module):
             pixel_values = nn.functional.pad(pixel_values, pad_values)
         return pixel_values
 
-    def forward(self, pixel_values: torch.FloatTensor | None) -> tuple[torch.Tensor, tuple[int]]:
+    def forward(
+        self, pixel_values: torch.FloatTensor | None
+    ) -> tuple[torch.Tensor, tuple[int]]:
         _, num_channels, height, width = pixel_values.shape
         if num_channels != self.num_channels:
             raise ValueError(
@@ -242,7 +260,9 @@ class FocalNetPatchEmbeddings(nn.Module):
 
 
 # Copied from transformers.models.beit.modeling_beit.drop_path
-def drop_path(input: torch.Tensor, drop_prob: float = 0.0, training: bool = False) -> torch.Tensor:
+def drop_path(
+    input: torch.Tensor, drop_prob: float = 0.0, training: bool = False
+) -> torch.Tensor:
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -250,8 +270,12 @@ def drop_path(input: torch.Tensor, drop_prob: float = 0.0, training: bool = Fals
     if drop_prob == 0.0 or not training:
         return input
     keep_prob = 1 - drop_prob
-    shape = (input.shape[0],) + (1,) * (input.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
-    random_tensor = keep_prob + torch.rand(shape, dtype=input.dtype, device=input.device)
+    shape = (input.shape[0],) + (1,) * (
+        input.ndim - 1
+    )  # work with diff dim tensors, not just 2D ConvNets
+    random_tensor = keep_prob + torch.rand(
+        shape, dtype=input.dtype, device=input.device
+    )
     random_tensor.floor_()  # binarize
     output = input.div(keep_prob) * random_tensor
     return output
@@ -273,7 +297,9 @@ class FocalNetDropPath(nn.Module):
 
 
 class FocalNetModulation(nn.Module):
-    def __init__(self, config, index, dim, focal_factor=2, bias=True, projection_dropout=0.0):
+    def __init__(
+        self, config, index, dim, focal_factor=2, bias=True, projection_dropout=0.0
+    ):
         super().__init__()
 
         self.dim = dim
@@ -284,7 +310,9 @@ class FocalNetModulation(nn.Module):
         self.normalize_modulator = config.normalize_modulator
 
         self.projection_in = nn.Linear(dim, 2 * dim + (self.focal_level + 1), bias=bias)
-        self.projection_context = nn.Conv2d(dim, dim, kernel_size=1, stride=1, bias=bias)
+        self.projection_context = nn.Conv2d(
+            dim, dim, kernel_size=1, stride=1, bias=bias
+        )
 
         self.activation = nn.GELU()
         self.projection_out = nn.Linear(dim, dim)
@@ -297,7 +325,13 @@ class FocalNetModulation(nn.Module):
             self.focal_layers.append(
                 nn.Sequential(
                     nn.Conv2d(
-                        dim, dim, kernel_size=kernel_size, stride=1, groups=dim, padding=kernel_size // 2, bias=False
+                        dim,
+                        dim,
+                        kernel_size=kernel_size,
+                        stride=1,
+                        groups=dim,
+                        padding=kernel_size // 2,
+                        bias=False,
                     ),
                     nn.GELU(),
                 )
@@ -316,7 +350,9 @@ class FocalNetModulation(nn.Module):
 
         # pre linear projection
         x = self.projection_in(hidden_state).permute(0, 3, 1, 2).contiguous()
-        q, ctx, gates = torch.split(x, (num_channels, num_channels, self.focal_level + 1), 1)
+        q, ctx, gates = torch.split(
+            x, (num_channels, num_channels, self.focal_level + 1), 1
+        )
 
         # context aggregation
         ctx_all = 0
@@ -344,7 +380,9 @@ class FocalNetModulation(nn.Module):
 
 
 class FocalNetMlp(nn.Module):
-    def __init__(self, config, in_features, hidden_features=None, out_features=None, drop=0.0):
+    def __init__(
+        self, config, in_features, hidden_features=None, out_features=None, drop=0.0
+    ):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -399,16 +437,27 @@ class FocalNetLayer(nn.Module):
             projection_dropout=self.drop,
         )
 
-        self.drop_path = FocalNetDropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path = (
+            FocalNetDropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        )
         self.norm2 = nn.LayerNorm(dim, eps=config.layer_norm_eps)
         mlp_hidden_dim = int(dim * config.mlp_ratio)
-        self.mlp = FocalNetMlp(config=config, in_features=dim, hidden_features=mlp_hidden_dim, drop=self.drop)
+        self.mlp = FocalNetMlp(
+            config=config,
+            in_features=dim,
+            hidden_features=mlp_hidden_dim,
+            drop=self.drop,
+        )
 
         self.gamma_1 = 1.0
         self.gamma_2 = 1.0
         if config.use_layerscale:
-            self.gamma_1 = nn.Parameter(config.layerscale_value * torch.ones(dim), requires_grad=True)
-            self.gamma_2 = nn.Parameter(config.layerscale_value * torch.ones(dim), requires_grad=True)
+            self.gamma_1 = nn.Parameter(
+                config.layerscale_value * torch.ones(dim), requires_grad=True
+            )
+            self.gamma_2 = nn.Parameter(
+                config.layerscale_value * torch.ones(dim), requires_grad=True
+            )
 
     def forward(self, hidden_state, input_dimensions):
         height, width = input_dimensions
@@ -416,16 +465,26 @@ class FocalNetLayer(nn.Module):
         shortcut = hidden_state
 
         # Focal Modulation
-        hidden_state = hidden_state if self.use_post_layernorm else self.norm1(hidden_state)
+        hidden_state = (
+            hidden_state if self.use_post_layernorm else self.norm1(hidden_state)
+        )
         hidden_state = hidden_state.view(batch_size, height, width, num_channels)
-        hidden_state = self.modulation(hidden_state).view(batch_size, height * width, num_channels)
-        hidden_state = hidden_state if not self.use_post_layernorm else self.norm1(hidden_state)
+        hidden_state = self.modulation(hidden_state).view(
+            batch_size, height * width, num_channels
+        )
+        hidden_state = (
+            hidden_state if not self.use_post_layernorm else self.norm1(hidden_state)
+        )
 
         # FFN
         hidden_state = shortcut + self.drop_path(self.gamma_1 * hidden_state)
         hidden_state = hidden_state + self.drop_path(
             self.gamma_2
-            * (self.norm2(self.mlp(hidden_state)) if self.use_post_layernorm else self.mlp(self.norm2(hidden_state)))
+            * (
+                self.norm2(self.mlp(hidden_state))
+                if self.use_post_layernorm
+                else self.mlp(self.norm2(hidden_state))
+            )
         )
 
         return hidden_state
@@ -443,8 +502,10 @@ class FocalNetStage(GradientCheckpointingLayer):
         out_dim = embed_dim[index + 1] if (index < self.num_stages - 1) else None
         downsample = FocalNetPatchEmbeddings if (index < self.num_stages - 1) else None
 
+        from ...modeling_utils import python_linspace
+
         # stochastic depth decay rule
-        dpr = [x.item() for x in torch.linspace(0, config.drop_path_rate, sum(config.depths), device="cpu")]
+        dpr = python_linspace(0, config.drop_path_rate, sum(config.depths))
         drop_path = dpr[sum(config.depths[:index]) : sum(config.depths[: index + 1])]
 
         self.layers = nn.ModuleList(
@@ -454,7 +515,9 @@ class FocalNetStage(GradientCheckpointingLayer):
                     index=index,
                     dim=dim,
                     input_resolution=input_resolution,
-                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                    drop_path=(
+                        drop_path[i] if isinstance(drop_path, list) else drop_path
+                    ),
                 )
                 for i in range(config.depths[index])
             ]
@@ -476,7 +539,9 @@ class FocalNetStage(GradientCheckpointingLayer):
 
         self.pointing = False
 
-    def forward(self, hidden_states: torch.Tensor, input_dimensions: tuple[int, int]) -> tuple[torch.Tensor]:
+    def forward(
+        self, hidden_states: torch.Tensor, input_dimensions: tuple[int, int]
+    ) -> tuple[torch.Tensor]:
         height, width = input_dimensions
         for layer_module in self.layers:
             hidden_states = layer_module(hidden_states, input_dimensions)
@@ -492,7 +557,11 @@ class FocalNetStage(GradientCheckpointingLayer):
         else:
             output_dimensions = (height, width, height, width)
 
-        stage_outputs = (hidden_states, hidden_states_before_downsampling, output_dimensions)
+        stage_outputs = (
+            hidden_states,
+            hidden_states_before_downsampling,
+            output_dimensions,
+        )
 
         return stage_outputs
 
@@ -508,7 +577,10 @@ class FocalNetEncoder(nn.Module):
                 FocalNetStage(
                     config=config,
                     index=i_layer,
-                    input_resolution=(grid_size[0] // (2**i_layer), grid_size[1] // (2**i_layer)),
+                    input_resolution=(
+                        grid_size[0] // (2**i_layer),
+                        grid_size[1] // (2**i_layer),
+                    ),
                 )
                 for i_layer in range(self.num_stages)
             ]
@@ -530,7 +602,9 @@ class FocalNetEncoder(nn.Module):
         if output_hidden_states:
             batch_size, _, hidden_size = hidden_states.shape
             # rearrange b (h w) c -> b c h w
-            reshaped_hidden_state = hidden_states.view(batch_size, *input_dimensions, hidden_size)
+            reshaped_hidden_state = hidden_states.view(
+                batch_size, *input_dimensions, hidden_size
+            )
             reshaped_hidden_state = reshaped_hidden_state.permute(0, 3, 1, 2)
             all_hidden_states += (hidden_states,)
             all_reshaped_hidden_states += (reshaped_hidden_state,)
@@ -549,7 +623,9 @@ class FocalNetEncoder(nn.Module):
                 # rearrange b (h w) c -> b c h w
                 # here we use the original (not downsampled) height and width
                 reshaped_hidden_state = hidden_states_before_downsampling.view(
-                    batch_size, *(output_dimensions[0], output_dimensions[1]), hidden_size
+                    batch_size,
+                    *(output_dimensions[0], output_dimensions[1]),
+                    hidden_size,
                 )
                 reshaped_hidden_state = reshaped_hidden_state.permute(0, 3, 1, 2)
                 all_hidden_states += (hidden_states_before_downsampling,)
@@ -557,7 +633,9 @@ class FocalNetEncoder(nn.Module):
             elif output_hidden_states and not output_hidden_states_before_downsampling:
                 batch_size, _, hidden_size = hidden_states.shape
                 # rearrange b (h w) c -> b c h w
-                reshaped_hidden_state = hidden_states.view(batch_size, *input_dimensions, hidden_size)
+                reshaped_hidden_state = hidden_states.view(
+                    batch_size, *input_dimensions, hidden_size
+                )
                 reshaped_hidden_state = reshaped_hidden_state.permute(0, 3, 1, 2)
                 all_hidden_states += (hidden_states,)
                 all_reshaped_hidden_states += (reshaped_hidden_state,)
@@ -633,14 +711,20 @@ class FocalNetModel(FocalNetPreTrainedModel):
             Boolean masked positions. Indicates which patches are masked (1) and which aren't (0).
         """
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
 
-        embedding_output, input_dimensions = self.embeddings(pixel_values, bool_masked_pos=bool_masked_pos)
+        embedding_output, input_dimensions = self.embeddings(
+            pixel_values, bool_masked_pos=bool_masked_pos
+        )
 
         encoder_outputs = self.encoder(
             embedding_output,
@@ -670,8 +754,7 @@ class FocalNetModel(FocalNetPreTrainedModel):
         )
 
 
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     FocalNet Model with a decoder on top for masked image modeling.
 
     This follows the same implementation as in [SimMIM](https://huggingface.co/papers/2111.09886).
@@ -682,19 +765,22 @@ class FocalNetModel(FocalNetPreTrainedModel):
     directory](https://github.com/huggingface/transformers/tree/main/examples/pytorch/image-pretraining).
 
     </Tip>
-    """
-)
+    """)
 class FocalNetForMaskedImageModeling(FocalNetPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
 
-        self.focalnet = FocalNetModel(config, add_pooling_layer=False, use_mask_token=True)
+        self.focalnet = FocalNetModel(
+            config, add_pooling_layer=False, use_mask_token=True
+        )
 
         self.num_stages = len(config.depths)
         num_features = int(config.embed_dim * 2 ** (self.num_stages - 1))
         self.decoder = nn.Sequential(
             nn.Conv2d(
-                in_channels=num_features, out_channels=config.encoder_stride**2 * config.num_channels, kernel_size=1
+                in_channels=num_features,
+                out_channels=config.encoder_stride**2 * config.num_channels,
+                kernel_size=1,
             ),
             nn.PixelShuffle(config.encoder_stride),
         )
@@ -741,7 +827,9 @@ class FocalNetForMaskedImageModeling(FocalNetPreTrainedModel):
         >>> list(reconstructed_pixel_values.shape)
         [1, 3, 192, 192]
         ```"""
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.focalnet(
             pixel_values,
@@ -755,7 +843,9 @@ class FocalNetForMaskedImageModeling(FocalNetPreTrainedModel):
         sequence_output = sequence_output.transpose(1, 2)
         batch_size, num_channels, sequence_length = sequence_output.shape
         height = width = math.floor(sequence_length**0.5)
-        sequence_output = sequence_output.reshape(batch_size, num_channels, height, width)
+        sequence_output = sequence_output.reshape(
+            batch_size, num_channels, height, width
+        )
 
         # Reconstruct pixel values
         reconstructed_pixel_values = self.decoder(sequence_output)
@@ -770,12 +860,20 @@ class FocalNetForMaskedImageModeling(FocalNetPreTrainedModel):
                 .unsqueeze(1)
                 .contiguous()
             )
-            reconstruction_loss = nn.functional.l1_loss(pixel_values, reconstructed_pixel_values, reduction="none")
-            masked_im_loss = (reconstruction_loss * mask).sum() / (mask.sum() + 1e-5) / self.config.num_channels
+            reconstruction_loss = nn.functional.l1_loss(
+                pixel_values, reconstructed_pixel_values, reduction="none"
+            )
+            masked_im_loss = (
+                (reconstruction_loss * mask).sum()
+                / (mask.sum() + 1e-5)
+                / self.config.num_channels
+            )
 
         if not return_dict:
             output = (reconstructed_pixel_values,) + outputs[2:]
-            return ((masked_im_loss,) + output) if masked_im_loss is not None else output
+            return (
+                ((masked_im_loss,) + output) if masked_im_loss is not None else output
+            )
 
         return FocalNetMaskedImageModelingOutput(
             loss=masked_im_loss,
@@ -785,12 +883,10 @@ class FocalNetForMaskedImageModeling(FocalNetPreTrainedModel):
         )
 
 
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     FocalNet Model with an image classification head on top (a linear layer on top of the pooled output) e.g. for
     ImageNet.
-    """
-)
+    """)
 class FocalNetForImageClassification(FocalNetPreTrainedModel):
     # Copied from transformers.models.swin.modeling_swin.SwinForImageClassification.__init__ with Swin->FocalNet, swin->focalnet
     def __init__(self, config):
@@ -801,7 +897,9 @@ class FocalNetForImageClassification(FocalNetPreTrainedModel):
 
         # Classifier head
         self.classifier = (
-            nn.Linear(self.focalnet.num_features, config.num_labels) if config.num_labels > 0 else nn.Identity()
+            nn.Linear(self.focalnet.num_features, config.num_labels)
+            if config.num_labels > 0
+            else nn.Identity()
         )
 
         # Initialize weights and apply final processing
@@ -822,7 +920,9 @@ class FocalNetForImageClassification(FocalNetPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.focalnet(
             pixel_values,
@@ -850,11 +950,9 @@ class FocalNetForImageClassification(FocalNetPreTrainedModel):
         )
 
 
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     FocalNet backbone, to be used with frameworks like X-Decoder.
-    """
-)
+    """)
 class FocalNetBackbone(BackboneMixin, FocalNetPreTrainedModel):
     has_attentions = False
 
@@ -895,12 +993,18 @@ class FocalNetBackbone(BackboneMixin, FocalNetPreTrainedModel):
         >>> inputs = processor(image, return_tensors="pt")
         >>> outputs = model(**inputs)
         ```"""
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
         output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
         )
 
-        outputs = self.focalnet(pixel_values, output_hidden_states=True, return_dict=True)
+        outputs = self.focalnet(
+            pixel_values, output_hidden_states=True, return_dict=True
+        )
 
         hidden_states = outputs.reshaped_hidden_states
 

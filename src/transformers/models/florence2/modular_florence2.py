@@ -27,20 +27,33 @@ from ...cache_utils import Cache
 from ...configuration_utils import PreTrainedConfig
 from ...feature_extraction_utils import BatchFeature
 from ...image_utils import ImageInput
-from ...modeling_outputs import BaseModelOutputWithPooling, Seq2SeqLMOutput, Seq2SeqModelOutput
+from ...modeling_outputs import (
+    BaseModelOutputWithPooling,
+    Seq2SeqLMOutput,
+    Seq2SeqModelOutput,
+)
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import MultiModalData, ProcessorMixin, Unpack
 from ...tokenization_utils_base import PreTokenizedInput, TextInput
-from ...utils import TransformersKwargs, auto_docstring, can_return_tuple, is_torch_available, logging
+from ...utils import (
+    TransformersKwargs,
+    auto_docstring,
+    can_return_tuple,
+    is_torch_available,
+    logging,
+)
 from ...utils.generic import merge_with_config_defaults
 from ...utils.output_capturing import capture_outputs
 from ..auto import CONFIG_MAPPING, AutoConfig
 from ..bart.modeling_bart import eager_attention_forward, shift_tokens_right
 from ..beit.modeling_beit import BeitDropPath
 from ..llama4.modeling_llama4 import Llama4VisionMLP
-from ..llava.modeling_llava import LlavaForConditionalGeneration, LlavaModel, LlavaPreTrainedModel
+from ..llava.modeling_llava import (
+    LlavaForConditionalGeneration,
+    LlavaModel,
+    LlavaPreTrainedModel,
+)
 from ..llava.processing_llava import LlavaProcessorKwargs
-
 
 if is_torch_available():
     import torch
@@ -224,7 +237,9 @@ class Florence2Config(PreTrainedConfig):
         if isinstance(vision_config, dict):
             vision_config = Florence2VisionConfig(**vision_config)
         elif vision_config is None:
-            logger.info("vision_config is None. Initializing the Florence2VisionConfig with default values.")
+            logger.info(
+                "vision_config is None. Initializing the Florence2VisionConfig with default values."
+            )
             vision_config = Florence2VisionConfig()
 
         self.text_config = text_config
@@ -302,7 +317,9 @@ class Florence2Processor(ProcessorMixin):
         self.num_image_tokens = image_processor.image_seq_length
         self.num_additional_image_tokens = num_additional_image_tokens
         self.post_processor_config = post_processor_config
-        self.post_processor = Florence2PostProcessor(config=post_processor_config, tokenizer=tokenizer)
+        self.post_processor = Florence2PostProcessor(
+            config=post_processor_config, tokenizer=tokenizer
+        )
         self.image_token = tokenizer.image_token
         self.image_token_id = tokenizer.image_token_id
 
@@ -321,7 +338,9 @@ class Florence2Processor(ProcessorMixin):
             for task_token, task_prompt in self.task_prompts_without_inputs.items():
                 if task_token in prompt:
                     if prompt != task_token:
-                        raise ValueError(f"Task token {task_token} should be the only content in the prompt.")
+                        raise ValueError(
+                            f"Task token {task_token} should be the only content in the prompt."
+                        )
                     prompt = task_prompt
                     break
             # Check for tasks with inputs
@@ -337,7 +356,9 @@ class Florence2Processor(ProcessorMixin):
     def __call__(
         self,
         images: ImageInput | None = None,
-        text: TextInput | PreTokenizedInput | list[TextInput] | list[PreTokenizedInput] = None,
+        text: (
+            TextInput | PreTokenizedInput | list[TextInput] | list[PreTokenizedInput]
+        ) = None,
         **kwargs: Unpack[Florence2ProcessorKwargs],
     ) -> BatchFeature:
         r"""
@@ -361,7 +382,9 @@ class Florence2Processor(ProcessorMixin):
 
         image_inputs = {}
         if images is not None:
-            image_inputs = self.image_processor(images, **output_kwargs["images_kwargs"])
+            image_inputs = self.image_processor(
+                images, **output_kwargs["images_kwargs"]
+            )
 
         if text is None:
             logger.warning_once("You are using Florence-2 without a text prefix.")
@@ -369,11 +392,15 @@ class Florence2Processor(ProcessorMixin):
         elif isinstance(text, str):
             text = [text]
 
-        if not isinstance(text, list) or not all(isinstance(token, str) for token in text):
+        if not isinstance(text, list) or not all(
+            isinstance(token, str) for token in text
+        ):
             raise ValueError("`text` must be a string or list of strings.")
 
         if isinstance(images, list) and len(images) != len(text):
-            raise ValueError(f"Number of images ({len(images)}) must match number of texts ({len(text)}).")
+            raise ValueError(
+                f"Number of images ({len(images)}) must match number of texts ({len(text)})."
+            )
 
         prompt_strings = self._construct_prompts(text)
 
@@ -394,9 +421,14 @@ class Florence2Processor(ProcessorMixin):
         # Construct and tokenize prompts
         output_kwargs["text_kwargs"].pop("add_special_tokens", None)
         return_tensors = output_kwargs["text_kwargs"].pop("return_tensors", None)
-        return_mm_token_type_ids = output_kwargs["text_kwargs"].pop("return_mm_token_type_ids", False)
+        return_mm_token_type_ids = output_kwargs["text_kwargs"].pop(
+            "return_mm_token_type_ids", False
+        )
         text_inputs = self.tokenizer(
-            prompt_strings, **output_kwargs["text_kwargs"], add_special_tokens=False, return_tensors=None
+            prompt_strings,
+            **output_kwargs["text_kwargs"],
+            add_special_tokens=False,
+            return_tensors=None,
         )
         self._check_special_mm_tokens(prompt_strings, text_inputs, modalities=["image"])
 
@@ -406,7 +438,9 @@ class Florence2Processor(ProcessorMixin):
             mm_token_type_ids[array_ids == self.image_token_id] = 1
             text_inputs["mm_token_type_ids"] = mm_token_type_ids.tolist()
 
-        return BatchFeature(data={**image_inputs, **text_inputs}, tensor_type=return_tensors)
+        return BatchFeature(
+            data={**image_inputs, **text_inputs}, tensor_type=return_tensors
+        )
 
     def batch_decode(self, *args, **kwargs):
         """
@@ -446,11 +480,18 @@ class Florence2Processor(ProcessorMixin):
             num_image_tokens = [self.num_image_tokens] * len(image_sizes)
             num_image_patches = [1] * len(image_sizes)
 
-            vision_data.update({"num_image_tokens": num_image_tokens, "num_image_patches": num_image_patches})
+            vision_data.update(
+                {
+                    "num_image_tokens": num_image_tokens,
+                    "num_image_patches": num_image_patches,
+                }
+            )
 
         return MultiModalData(**vision_data)
 
-    def post_process_image_text_to_text(self, generated_outputs, skip_special_tokens=False, **kwargs):
+    def post_process_image_text_to_text(
+        self, generated_outputs, skip_special_tokens=False, **kwargs
+    ):
         """
         Post-processes the output of `FuyuForConditionalGeneration` to only return the text output.
 
@@ -466,9 +507,13 @@ class Florence2Processor(ProcessorMixin):
         Returns:
             `list[str]`: The decoded text output.
         """
-        return self.batch_decode(generated_outputs, skip_special_tokens=skip_special_tokens, **kwargs)
+        return self.batch_decode(
+            generated_outputs, skip_special_tokens=skip_special_tokens, **kwargs
+        )
 
-    def post_process_generation(self, text=None, sequence=None, task=None, image_size=None) -> dict[str, Any]:
+    def post_process_generation(
+        self, text=None, sequence=None, task=None, image_size=None
+    ) -> dict[str, Any]:
         """
         Post-process generation outputs based on the task.
 
@@ -559,12 +604,16 @@ class Florence2PostProcessor:
         self.tokenizer = tokenizer
         self.parse_task_config = config or {}
         self.banned_grounding_tokens = set(
-            self.parse_task_config.get("phrase_grounding", {}).get("banned_grounding_tokens", [])
+            self.parse_task_config.get("phrase_grounding", {}).get(
+                "banned_grounding_tokens", []
+            )
         )
         self.all_special_tokens = set(self.tokenizer.all_special_tokens)
         self.quantize_bins = (1000, 1000)
 
-    def quantize(self, locations: "torch.Tensor", size: tuple[int, int]) -> "torch.Tensor":
+    def quantize(
+        self, locations: "torch.Tensor", size: tuple[int, int]
+    ) -> "torch.Tensor":
         """
         Quantize locations.
 
@@ -597,9 +646,13 @@ class Florence2PostProcessor:
             return torch.cat([q_x, q_y], dim=-1).int()
 
         else:
-            raise ValueError(f"Unsupported location shape: last dim must be 2 or 4, got {locations.shape[-1]}.")
+            raise ValueError(
+                f"Unsupported location shape: last dim must be 2 or 4, got {locations.shape[-1]}."
+            )
 
-    def dequantize(self, locations: "torch.Tensor", size: tuple[int, int]) -> "torch.Tensor":
+    def dequantize(
+        self, locations: "torch.Tensor", size: tuple[int, int]
+    ) -> "torch.Tensor":
         """
         Dequantize locations back to original scale.
 
@@ -633,9 +686,13 @@ class Florence2PostProcessor:
             return torch.cat([dq_x, dq_y], dim=-1).int()
 
         else:
-            raise ValueError(f"Unsupported location shape: last dim must be 2 or 4, got {locations.shape[-1]}.")
+            raise ValueError(
+                f"Unsupported location shape: last dim must be 2 or 4, got {locations.shape[-1]}."
+            )
 
-    def decode_with_spans(self, token_ids: list[int]) -> tuple[str, list[tuple[int, int]]]:
+    def decode_with_spans(
+        self, token_ids: list[int]
+    ) -> tuple[str, list[tuple[int, int]]]:
         """
         Decode token IDs to text and compute character spans.
 
@@ -646,7 +703,9 @@ class Florence2PostProcessor:
         Returns:
             `tuple[str, list[tuple[int, int]]]`: Decoded text and list of spans (start, end) for each token.
         """
-        filtered_tokens = self.tokenizer.convert_ids_to_tokens(token_ids, skip_special_tokens=False)
+        filtered_tokens = self.tokenizer.convert_ids_to_tokens(
+            token_ids, skip_special_tokens=False
+        )
         text = ""
         spans = []
         for token in filtered_tokens:
@@ -660,7 +719,11 @@ class Florence2PostProcessor:
         return text, spans
 
     def parse_ocr_from_text_and_spans(
-        self, text: str, pattern: str | None, image_size: tuple[int, int], area_threshold: float = 0.0
+        self,
+        text: str,
+        pattern: str | None,
+        image_size: tuple[int, int],
+        area_threshold: float = 0.0,
     ) -> list[dict[str, Any]]:
         """
         Parse OCR results with quadrilateral boxes.
@@ -688,14 +751,21 @@ class Florence2PostProcessor:
 
         for content, *quad_str in matches:
             quad_bins = [int(i) for i in quad_str]
-            quad_box = self.dequantize(torch.tensor(quad_bins).reshape(-1, 2), size=image_size).flatten().tolist()
+            quad_box = (
+                self.dequantize(torch.tensor(quad_bins).reshape(-1, 2), size=image_size)
+                .flatten()
+                .tolist()
+            )
 
             if area_threshold > 0:
                 x_coords = quad_box[0::2]
                 y_coords = quad_box[1::2]
                 # Apply the Shoelace formula
                 area = 0.5 * abs(
-                    sum(x_coords[i] * y_coords[i + 1] - x_coords[i + 1] * y_coords[i] for i in range(4 - 1))
+                    sum(
+                        x_coords[i] * y_coords[i + 1] - x_coords[i + 1] * y_coords[i]
+                        for i in range(4 - 1)
+                    )
                 )
 
                 if area < (width * height) * area_threshold:
@@ -745,8 +815,14 @@ class Florence2PostProcessor:
             instances.append({"bbox": bboxes, "cat_name": phrase})
         return instances
 
-    def _find_matched_token_indices(self, cur_span: tuple[int, int], token_spans: list[tuple[int, int]]) -> list[int]:
-        return [i for i, span in enumerate(token_spans) if not (span[1] <= cur_span[0] or span[0] >= cur_span[1])]
+    def _find_matched_token_indices(
+        self, cur_span: tuple[int, int], token_spans: list[tuple[int, int]]
+    ) -> list[int]:
+        return [
+            i
+            for i, span in enumerate(token_spans)
+            if not (span[1] <= cur_span[0] or span[0] >= cur_span[1])
+        ]
 
     def parse_description_with_bboxes_from_text_and_spans(
         self,
@@ -840,8 +916,12 @@ class Florence2PostProcessor:
         else:
             pattern = rf"([^<]+(?:<loc_\d+>|{re.escape(polygon_sep_token)}|{re.escape(polygon_start_token)}|{re.escape(polygon_end_token)}){{4,}})"
         phrases = re.findall(pattern, text)
-        phrase_pattern = r"^\s*(.*?)(?=<od>|</od>|<box>|</box>|<bbox>|</bbox>|<loc_|<poly>)"
-        poly_instance_pattern = rf"{re.escape(polygon_start_token)}(.*?){re.escape(polygon_end_token)}"
+        phrase_pattern = (
+            r"^\s*(.*?)(?=<od>|</od>|<box>|</box>|<bbox>|</bbox>|<loc_|<poly>)"
+        )
+        poly_instance_pattern = (
+            rf"{re.escape(polygon_start_token)}(.*?){re.escape(polygon_end_token)}"
+        )
         box_pattern = rf"((?:<loc_\d+>)+)(?:{re.escape(polygon_sep_token)}|$)"
 
         instances = []
@@ -855,7 +935,9 @@ class Florence2PostProcessor:
             phrase = match.group().strip()
 
             if polygon_start_token in phrase_text and polygon_end_token in phrase_text:
-                poly_instances = [m.group(1) for m in re.finditer(poly_instance_pattern, phrase_text)]
+                poly_instances = [
+                    m.group(1) for m in re.finditer(poly_instance_pattern, phrase_text)
+                ]
             else:
                 poly_instances = [phrase_text]
 
@@ -867,7 +949,9 @@ class Florence2PostProcessor:
                 polygons = []
                 for poly_match in poly_matches:
                     poly_str = poly_match.group(1)
-                    poly_bins = [int(m.group(1)) for m in re.finditer(r"<loc_(\d+)>", poly_str)]
+                    poly_bins = [
+                        int(m.group(1)) for m in re.finditer(r"<loc_(\d+)>", poly_str)
+                    ]
                     if with_box_at_start and not bbox:
                         if len(poly_bins) > 4:
                             bbox = poly_bins[:4]
@@ -877,17 +961,25 @@ class Florence2PostProcessor:
                     if len(poly_bins) % 2 == 1:
                         poly_bins = poly_bins[:-1]
                     poly_coords = (
-                        self.dequantize(torch.tensor(poly_bins).reshape(-1, 2), size=image_size).flatten().tolist()
+                        self.dequantize(
+                            torch.tensor(poly_bins).reshape(-1, 2), size=image_size
+                        )
+                        .flatten()
+                        .tolist()
                     )
                     polygons.append(poly_coords)
 
                 instance = {"cat_name": phrase, "polygons": polygons}
                 if bbox:
-                    instance["bbox"] = self.dequantize(torch.tensor([bbox]), size=image_size)[0].tolist()
+                    instance["bbox"] = self.dequantize(
+                        torch.tensor([bbox]), size=image_size
+                    )[0].tolist()
                 instances.append(instance)
         return instances
 
-    def __call__(self, text=None, sequence=None, image_size=None, parse_tasks=None) -> dict[str, Any]:
+    def __call__(
+        self, text=None, sequence=None, image_size=None, parse_tasks=None
+    ) -> dict[str, Any]:
         """
         Process model output and parse into task-specific results.
 
@@ -910,13 +1002,17 @@ class Florence2PostProcessor:
                 if task not in self.parse_task_config.keys():
                     raise ValueError(f"Unsupported parse task: {task}")
 
-        if (text is None and sequence is None) or (text is not None and sequence is not None):
+        if (text is None and sequence is None) or (
+            text is not None and sequence is not None
+        ):
             raise ValueError("Exactly one of 'text' or 'sequence' must be provided.")
 
         if sequence is not None:
             if isinstance(sequence, torch.Tensor):
                 sequence = sequence.tolist()
-            sequence = sequence[1:] if sequence[0] == self.tokenizer.bos_token_id else sequence  # Skip BOS if present
+            sequence = (
+                sequence[1:] if sequence[0] == self.tokenizer.bos_token_id else sequence
+            )  # Skip BOS if present
             text, _ = self.decode_with_spans(sequence)
 
         parsed_dict = {"text": text}
@@ -928,35 +1024,54 @@ class Florence2PostProcessor:
 
             if task == "ocr":
                 parsed_dict["ocr"] = self.parse_ocr_from_text_and_spans(
-                    text, pattern=pattern, image_size=image_size, area_threshold=config.get("AREA_THRESHOLD", 0.0)
+                    text,
+                    pattern=pattern,
+                    image_size=image_size,
+                    area_threshold=config.get("AREA_THRESHOLD", 0.0),
                 )
             elif task == "phrase_grounding":
-                parsed_dict["phrase_grounding"] = self.parse_phrase_grounding_from_text_and_spans(
-                    text, image_size=image_size
+                parsed_dict["phrase_grounding"] = (
+                    self.parse_phrase_grounding_from_text_and_spans(
+                        text, image_size=image_size
+                    )
                 )
             elif task == "pure_text":
                 parsed_dict["pure_text"] = text
             elif task == "description_with_bboxes":
-                parsed_dict["description_with_bboxes"] = self.parse_description_with_bboxes_from_text_and_spans(
-                    text, image_size=image_size
+                parsed_dict["description_with_bboxes"] = (
+                    self.parse_description_with_bboxes_from_text_and_spans(
+                        text, image_size=image_size
+                    )
                 )
             elif task == "description_with_polygons":
-                parsed_dict["description_with_polygons"] = self.parse_description_with_polygons_from_text_and_spans(
-                    text, image_size=image_size
+                parsed_dict["description_with_polygons"] = (
+                    self.parse_description_with_polygons_from_text_and_spans(
+                        text, image_size=image_size
+                    )
                 )
             elif task == "polygons":
-                parsed_dict["polygons"] = self.parse_description_with_polygons_from_text_and_spans(
-                    text, image_size=image_size, allow_empty_phrase=True
+                parsed_dict["polygons"] = (
+                    self.parse_description_with_polygons_from_text_and_spans(
+                        text, image_size=image_size, allow_empty_phrase=True
+                    )
                 )
             elif task == "bboxes":
-                parsed_dict["bboxes"] = self.parse_description_with_bboxes_from_text_and_spans(
-                    text, image_size=image_size, allow_empty_phrase=True
+                parsed_dict["bboxes"] = (
+                    self.parse_description_with_bboxes_from_text_and_spans(
+                        text, image_size=image_size, allow_empty_phrase=True
+                    )
                 )
             elif task == "description_with_bboxes_or_polygons":
                 if "<poly>" in text:
-                    instances = self.parse_description_with_polygons_from_text_and_spans(text, image_size=image_size)
+                    instances = (
+                        self.parse_description_with_polygons_from_text_and_spans(
+                            text, image_size=image_size
+                        )
+                    )
                 else:
-                    instances = self.parse_description_with_bboxes_from_text_and_spans(text, image_size=image_size)
+                    instances = self.parse_description_with_bboxes_from_text_and_spans(
+                        text, image_size=image_size
+                    )
                 parsed_dict["description_with_bboxes_or_polygons"] = instances
             else:
                 raise ValueError(f"task {task} is not supported")
@@ -978,7 +1093,9 @@ class Florence2VisionLearnedAbsolutePositionEmbedding2D(nn.Module):
         num_pos = config.vision_config.max_position_embeddings
         embedding_dim = config.vision_config.embed_dim[-1]
         self.row_embeddings = nn.Embedding(num_pos, embedding_dim // 2)
-        self.column_embeddings = nn.Embedding(num_pos, embedding_dim - (embedding_dim // 2))
+        self.column_embeddings = nn.Embedding(
+            num_pos, embedding_dim - (embedding_dim // 2)
+        )
 
     def forward(self, pixel_values, pixel_mask=None):
         height, width = pixel_values.shape[-2:]
@@ -986,7 +1103,13 @@ class Florence2VisionLearnedAbsolutePositionEmbedding2D(nn.Module):
         height_values = torch.arange(height, device=pixel_values.device)
         x_emb = self.column_embeddings(width_values)
         y_emb = self.row_embeddings(height_values)
-        pos = torch.cat([x_emb.unsqueeze(0).repeat(height, 1, 1), y_emb.unsqueeze(1).repeat(1, width, 1)], dim=-1)
+        pos = torch.cat(
+            [
+                x_emb.unsqueeze(0).repeat(height, 1, 1),
+                y_emb.unsqueeze(1).repeat(1, width, 1),
+            ],
+            dim=-1,
+        )
         pos = pos.permute(2, 0, 1)
         pos = pos.unsqueeze(0)
         pos = pos.repeat(pixel_values.shape[0], 1, 1, 1)
@@ -1017,13 +1140,17 @@ class Florence2VisionPositionalEmbeddingCosine1D(nn.Module):
         half_dim = embed_dim // 2
         emb = math.log(10000) / half_dim
         emb = torch.exp(torch.arange(half_dim, dtype=torch.int64).float() * -emb)
-        emb = torch.arange(max_positions, dtype=torch.float).unsqueeze(1) * emb.unsqueeze(0)
+        emb = torch.arange(max_positions, dtype=torch.float).unsqueeze(
+            1
+        ) * emb.unsqueeze(0)
         return torch.sin(emb), torch.cos(emb)
 
     def forward(self, seq_embeds: torch.Tensor) -> torch.Tensor:
         len_seq = seq_embeds.size(1)
         if len_seq > self.max_seq_len:
-            raise ValueError(f"Maximum sequence length {self.max_seq_len}, got {len_seq}")
+            raise ValueError(
+                f"Maximum sequence length {self.max_seq_len}, got {len_seq}"
+            )
         pos_embeds = self.pos_idx_to_embed[0:len_seq, :]
         return pos_embeds
 
@@ -1031,9 +1158,15 @@ class Florence2VisionPositionalEmbeddingCosine1D(nn.Module):
 class Florence2VisionMLP(Llama4VisionMLP):
     def __init__(self, config: Florence2VisionConfig, stage_idx: int):
         super().__init__(config)
-        self.fc1 = nn.Linear(config.embed_dim[stage_idx], int(config.embed_dim[stage_idx] * config.mlp_ratio))
+        self.fc1 = nn.Linear(
+            config.embed_dim[stage_idx],
+            int(config.embed_dim[stage_idx] * config.mlp_ratio),
+        )
         self.activation_fn = ACT2FN[config.activation_function]
-        self.fc2 = nn.Linear(int(config.embed_dim[stage_idx] * config.mlp_ratio), config.embed_dim[stage_idx])
+        self.fc2 = nn.Linear(
+            int(config.embed_dim[stage_idx] * config.mlp_ratio),
+            config.embed_dim[stage_idx],
+        )
 
 
 class Florence2VisionConvEmbed(nn.Module):
@@ -1044,7 +1177,9 @@ class Florence2VisionConvEmbed(nn.Module):
         self.config = config
         self.stage_idx = stage_idx
         self.patch_size = config.patch_size[stage_idx]
-        self.in_channels = config.in_channels if stage_idx == 0 else config.embed_dim[stage_idx - 1]
+        self.in_channels = (
+            config.in_channels if stage_idx == 0 else config.embed_dim[stage_idx - 1]
+        )
         self.embed_dim = config.embed_dim[stage_idx]
         self.stride = config.patch_stride[stage_idx]
         self.padding = config.patch_padding[stage_idx]
@@ -1090,7 +1225,9 @@ class Florence2VisionChannelAttention(nn.Module):
         batch_size, num_tokens, hidden_size = hidden_states.shape
 
         # Reshape for grouped channel attention
-        qkv = self.qkv(hidden_states).reshape(batch_size, num_tokens, 3, self.groups, hidden_size // self.groups)
+        qkv = self.qkv(hidden_states).reshape(
+            batch_size, num_tokens, 3, self.groups, hidden_size // self.groups
+        )
         qkv = qkv.permute(2, 0, 3, 4, 1)
         query, key, value = qkv.unbind(0)
 
@@ -1135,8 +1272,14 @@ class Florence2VisionChannelBlock(nn.Module):
             groups=dim_in,
         )
         self.norm1 = nn.LayerNorm(config.embed_dim[stage_idx])
-        self.channel_attn = Florence2VisionChannelAttention(config=config, stage_idx=stage_idx)
-        self.drop_path1 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
+        self.channel_attn = Florence2VisionChannelAttention(
+            config=config, stage_idx=stage_idx
+        )
+        self.drop_path1 = (
+            Florence2VisionDropPath(drop_path_rate)
+            if drop_path_rate > 0.0
+            else nn.Identity()
+        )
 
         self.conv2 = nn.Conv2d(
             dim_in,
@@ -1147,7 +1290,11 @@ class Florence2VisionChannelBlock(nn.Module):
         )
         self.norm2 = nn.LayerNorm(config.embed_dim[stage_idx])
         self.ffn = Florence2VisionMLP(config=config, stage_idx=stage_idx)
-        self.drop_path2 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
+        self.drop_path2 = (
+            Florence2VisionDropPath(drop_path_rate)
+            if drop_path_rate > 0.0
+            else nn.Identity()
+        )
 
     def forward(self, hidden_states: torch.Tensor):
         batch_size, embed_dim, height, width = hidden_states.shape
@@ -1161,7 +1308,9 @@ class Florence2VisionChannelBlock(nn.Module):
         hidden_states = self.norm1(hidden_states)
         hidden_states = self.channel_attn(hidden_states)
         hidden_states = residual + self.drop_path1(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
+        hidden_states = hidden_states.transpose(1, 2).view(
+            batch_size, embed_dim, height, width
+        )
 
         # Second channel block: Depthwise Conv + FFN
         hidden_states = self.conv2(hidden_states) + hidden_states
@@ -1172,7 +1321,9 @@ class Florence2VisionChannelBlock(nn.Module):
         hidden_states = self.norm2(hidden_states)
         hidden_states = self.ffn(hidden_states)
         hidden_states = residual + self.drop_path2(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
+        hidden_states = hidden_states.transpose(1, 2).view(
+            batch_size, embed_dim, height, width
+        )
 
         return hidden_states
 
@@ -1198,7 +1349,9 @@ class Florence2VisionWindowAttention(nn.Module):
         pad_left = pad_top = 0
         pad_right = (self.window_size - width % self.window_size) % self.window_size
         pad_bottom = (self.window_size - height % self.window_size) % self.window_size
-        hidden_states = F.pad(hidden_states, (0, 0, pad_left, pad_right, pad_top, pad_bottom))
+        hidden_states = F.pad(
+            hidden_states, (0, 0, pad_left, pad_right, pad_top, pad_bottom)
+        )
         _, padded_height, padded_width, _ = hidden_states.shape
 
         # Partition input into non-overlapping windows (for local spatial attention in DaViT)
@@ -1211,12 +1364,20 @@ class Florence2VisionWindowAttention(nn.Module):
             embed_dim,
         )
         windowed_hidden_states = hidden_states.permute(0, 1, 3, 2, 4, 5).contiguous()
-        windowed_hidden_states = windowed_hidden_states.view(-1, self.window_size * self.window_size, embed_dim)
+        windowed_hidden_states = windowed_hidden_states.view(
+            -1, self.window_size * self.window_size, embed_dim
+        )
 
         # Generate Q, K, V for each window
-        num_windows_per_batch, num_tokens_per_window, embed_dim = windowed_hidden_states.shape
+        num_windows_per_batch, num_tokens_per_window, embed_dim = (
+            windowed_hidden_states.shape
+        )
         qkv = self.qkv(windowed_hidden_states).reshape(
-            num_windows_per_batch, num_tokens_per_window, 3, self.num_heads, embed_dim // self.num_heads
+            num_windows_per_batch,
+            num_tokens_per_window,
+            3,
+            self.num_heads,
+            embed_dim // self.num_heads,
         )
         qkv = qkv.permute(2, 0, 3, 1, 4)
         query, key, value = qkv.unbind(0)
@@ -1233,11 +1394,15 @@ class Florence2VisionWindowAttention(nn.Module):
             attention_mask=None,
             scaling=self.scale,
         )
-        windowed_hidden_states = windowed_hidden_states.view(num_windows_per_batch, num_tokens_per_window, embed_dim)
+        windowed_hidden_states = windowed_hidden_states.view(
+            num_windows_per_batch, num_tokens_per_window, embed_dim
+        )
         windowed_hidden_states = self.proj(windowed_hidden_states)
 
         # Merge windows back to original spatial layout
-        windowed_hidden_states = windowed_hidden_states.view(-1, self.window_size, self.window_size, embed_dim)
+        windowed_hidden_states = windowed_hidden_states.view(
+            -1, self.window_size, self.window_size, embed_dim
+        )
         hidden_states = windowed_hidden_states.view(
             -1,
             padded_height // self.window_size,
@@ -1271,8 +1436,14 @@ class Florence2VisionSpatialBlock(nn.Module):
             groups=config.embed_dim[stage_idx],
         )
         self.norm1 = nn.LayerNorm(config.embed_dim[stage_idx])
-        self.window_attn = Florence2VisionWindowAttention(config=config, stage_idx=stage_idx)
-        self.drop_path1 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
+        self.window_attn = Florence2VisionWindowAttention(
+            config=config, stage_idx=stage_idx
+        )
+        self.drop_path1 = (
+            Florence2VisionDropPath(drop_path_rate)
+            if drop_path_rate > 0.0
+            else nn.Identity()
+        )
 
         self.conv2 = nn.Conv2d(
             config.embed_dim[stage_idx],
@@ -1283,7 +1454,11 @@ class Florence2VisionSpatialBlock(nn.Module):
         )
         self.norm2 = nn.LayerNorm(config.embed_dim[stage_idx])
         self.ffn = Florence2VisionMLP(config=config, stage_idx=stage_idx)
-        self.drop_path2 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
+        self.drop_path2 = (
+            Florence2VisionDropPath(drop_path_rate)
+            if drop_path_rate > 0.0
+            else nn.Identity()
+        )
 
     def forward(self, hidden_states: torch.Tensor):
         batch_size, embed_dim, height, width = hidden_states.shape
@@ -1298,7 +1473,9 @@ class Florence2VisionSpatialBlock(nn.Module):
         hidden_states = hidden_states.view(batch_size, height, width, embed_dim)
         hidden_states = self.window_attn(hidden_states)
         hidden_states = residual + self.drop_path1(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
+        hidden_states = hidden_states.transpose(1, 2).view(
+            batch_size, embed_dim, height, width
+        )
 
         # Second spatial mixing block: Conv + FFN
         hidden_states = self.conv2(hidden_states) + hidden_states
@@ -1309,7 +1486,9 @@ class Florence2VisionSpatialBlock(nn.Module):
         hidden_states = self.norm2(hidden_states)
         hidden_states = self.ffn(hidden_states)
         hidden_states = residual + self.drop_path2(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
+        hidden_states = hidden_states.transpose(1, 2).view(
+            batch_size, embed_dim, height, width
+        )
 
         return hidden_states
 
@@ -1374,7 +1553,9 @@ class Florence2VisionBackbone(Florence2VisionPreTrainedModel):
                 f"len(self.num_groups) ({len(self.num_groups)})"
             )
 
-        dpr = [x.item() for x in torch.linspace(0, config.drop_path_rate, sum(config.depths) * 2, device="cpu")]
+        from transformers.modeling_utils import python_linspace
+
+        dpr = python_linspace(0, config.drop_path_rate, sum(config.depths) * 2)
         depth_offset = 0
 
         convs = []
@@ -1424,10 +1605,16 @@ class Florence2MultiModalProjector(nn.Module):
         super().__init__()
         self.vision_embedding_dim = config.vision_config.embed_dim[-1]
         self.vision_projection_dim = config.vision_config.projection_dim
-        self.image_projection = nn.Linear(self.vision_embedding_dim, self.vision_projection_dim, bias=False)
+        self.image_projection = nn.Linear(
+            self.vision_embedding_dim, self.vision_projection_dim, bias=False
+        )
         self.image_proj_norm = nn.LayerNorm(self.vision_projection_dim)
-        self.image_position_embed = Florence2VisionLearnedAbsolutePositionEmbedding2D(config=config)
-        self.visual_temporal_embed = Florence2VisionPositionalEmbeddingCosine1D(config=config)
+        self.image_position_embed = Florence2VisionLearnedAbsolutePositionEmbedding2D(
+            config=config
+        )
+        self.visual_temporal_embed = Florence2VisionPositionalEmbeddingCosine1D(
+            config=config
+        )
 
     def forward(self, image_features):
         position_features = image_features + self.image_position_embed(image_features)
@@ -1438,19 +1625,19 @@ class Florence2MultiModalProjector(nn.Module):
         visual_token_features = visual_token_features.unsqueeze(1)
         spatial_image_features = visual_token_features.mean(dim=2)
         temporal_image_features = visual_token_features.mean(dim=1)
-        image_features = torch.cat([spatial_image_features, temporal_image_features], dim=1)
+        image_features = torch.cat(
+            [spatial_image_features, temporal_image_features], dim=1
+        )
         image_features = self.image_projection(image_features)
         image_features = self.image_proj_norm(image_features)
         return image_features
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     Base class for Florence-2 base model's outputs that also contains : pre-computed hidden states that can speed up sequential
     decoding.
-    """
-)
+    """)
 class Florence2Seq2SeqModelOutput(Seq2SeqModelOutput):
     r"""
     image_hidden_states (`torch.FloatTensor`, *optional*):
@@ -1462,12 +1649,10 @@ class Florence2Seq2SeqModelOutput(Seq2SeqModelOutput):
 
 
 @dataclass
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     Base class for Florence-2 model's outputs that also contains : pre-computed hidden states that can speed up sequential
     decoding.
-    """
-)
+    """)
 class Florence2Seq2SeqLMOutput(Seq2SeqLMOutput):
     r"""
     loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -1502,11 +1687,9 @@ class Florence2PreTrainedModel(LlavaPreTrainedModel):
             init.copy_(module.pos_idx_to_embed, pos_idx_to_embed)
 
 
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     Florence-2 is a vision model for captioning, detection, and segmentation.
-    """
-)
+    """)
 class Florence2Model(LlavaModel):
     _checkpoint_conversion_mapping = {}
 
@@ -1532,7 +1715,9 @@ class Florence2Model(LlavaModel):
             The tensors corresponding to the input images.
         """
         image_outputs = self.vision_tower(pixel_values, return_dict=True, **kwargs)
-        image_outputs.pooler_output = self.multi_modal_projector(image_outputs.last_hidden_state)
+        image_outputs.pooler_output = self.multi_modal_projector(
+            image_outputs.last_hidden_state
+        )
 
         return image_outputs
 
@@ -1556,26 +1741,44 @@ class Florence2Model(LlavaModel):
         cache_position: torch.LongTensor | None = None,
         **kwargs,
     ) -> tuple | Florence2Seq2SeqModelOutput:
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if encoder_outputs is None:
             if (input_ids is None) ^ (inputs_embeds is not None):
-                raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
+                raise ValueError(
+                    "You must specify exactly one of input_ids or inputs_embeds"
+                )
 
             if inputs_embeds is None:
                 inputs_embeds = self.get_input_embeddings()(input_ids)
 
             if pixel_values is not None:
-                image_features = self.get_image_features(pixel_values, return_dict=True).pooler_output
-                image_features = image_features.to(inputs_embeds.device, inputs_embeds.dtype)
-                special_image_mask = self.get_placeholder_mask(
-                    input_ids, inputs_embeds=inputs_embeds, image_features=image_features
+                image_features = self.get_image_features(
+                    pixel_values, return_dict=True
+                ).pooler_output
+                image_features = image_features.to(
+                    inputs_embeds.device, inputs_embeds.dtype
                 )
-                inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+                special_image_mask = self.get_placeholder_mask(
+                    input_ids,
+                    inputs_embeds=inputs_embeds,
+                    image_features=image_features,
+                )
+                inputs_embeds = inputs_embeds.masked_scatter(
+                    special_image_mask, image_features
+                )
 
             encoder_outputs = self.language_model.encoder(
                 attention_mask=attention_mask,
@@ -1587,7 +1790,11 @@ class Florence2Model(LlavaModel):
 
         if decoder_input_ids is None:
             decoder_start_token_id = self.config.text_config.decoder_start_token_id
-            decoder_input_ids = torch.ones((inputs_embeds.size()[0], 1), dtype=torch.long, device=inputs_embeds.device)
+            decoder_input_ids = torch.ones(
+                (inputs_embeds.size()[0], 1),
+                dtype=torch.long,
+                device=inputs_embeds.device,
+            )
             decoder_input_ids *= decoder_start_token_id
 
         decoder_outputs = self.language_model.decoder(
@@ -1617,11 +1824,9 @@ class Florence2Model(LlavaModel):
         )
 
 
-@auto_docstring(
-    custom_intro="""
+@auto_docstring(custom_intro="""
     Florence-2 is a vision model for captioning, detection, and segmentation.
-    """
-)
+    """)
 class Florence2ForConditionalGeneration(LlavaForConditionalGeneration):
     _checkpoint_conversion_mapping = {}
     _tied_weights_keys = {
@@ -1685,19 +1890,31 @@ class Florence2ForConditionalGeneration(LlavaForConditionalGeneration):
         >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "A green car parked in front of a yellow building."
         ```"""
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
         )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         if labels is not None:
             if use_cache:
-                logger.warning("The `use_cache` argument is changed to `False` since `labels` is provided.")
+                logger.warning(
+                    "The `use_cache` argument is changed to `False` since `labels` is provided."
+                )
             use_cache = False
             if decoder_input_ids is None and decoder_inputs_embeds is None:
                 decoder_input_ids = shift_tokens_right(
-                    labels, self.config.text_config.pad_token_id, self.config.text_config.decoder_start_token_id
+                    labels,
+                    self.config.text_config.pad_token_id,
+                    self.config.text_config.decoder_start_token_id,
                 )
 
         outputs = self.model(
@@ -1720,13 +1937,20 @@ class Florence2ForConditionalGeneration(LlavaForConditionalGeneration):
 
         hidden_states = outputs[0]
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
-        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        slice_indices = (
+            slice(-logits_to_keep, None)
+            if isinstance(logits_to_keep, int)
+            else logits_to_keep
+        )
         logits = self.lm_head(hidden_states[:, slice_indices, :])
 
         loss = None
         if labels is not None:
             loss = self.loss_function(
-                logits=logits, labels=labels, vocab_size=self.config.text_config.vocab_size, **kwargs
+                logits=logits,
+                labels=labels,
+                vocab_size=self.config.text_config.vocab_size,
+                **kwargs,
             )
 
         return Florence2Seq2SeqLMOutput(
@@ -1743,10 +1967,15 @@ class Florence2ForConditionalGeneration(LlavaForConditionalGeneration):
         )
 
     def get_placeholder_mask(
-        self, input_ids: torch.LongTensor, inputs_embeds: torch.FloatTensor, image_features: torch.FloatTensor
+        self,
+        input_ids: torch.LongTensor,
+        inputs_embeds: torch.FloatTensor,
+        image_features: torch.FloatTensor,
     ):
         return self.model.get_placeholder_mask(
-            input_ids=input_ids, inputs_embeds=inputs_embeds, image_features=image_features
+            input_ids=input_ids,
+            inputs_embeds=inputs_embeds,
+            image_features=image_features,
         )
 
     def _prepare_encoder_decoder_kwargs_for_generation(
@@ -1764,12 +1993,20 @@ class Florence2ForConditionalGeneration(LlavaForConditionalGeneration):
             inputs_embeds = self.get_input_embeddings()(inputs_tensor)
 
         if pixel_values is not None:
-            image_features = self.get_image_features(pixel_values, return_dict=True).pooler_output
-            image_features = image_features.to(inputs_embeds.device, inputs_embeds.dtype)
-            special_image_mask = self.get_placeholder_mask(
-                inputs_tensor, inputs_embeds=inputs_embeds, image_features=image_features
+            image_features = self.get_image_features(
+                pixel_values, return_dict=True
+            ).pooler_output
+            image_features = image_features.to(
+                inputs_embeds.device, inputs_embeds.dtype
             )
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+            special_image_mask = self.get_placeholder_mask(
+                inputs_tensor,
+                inputs_embeds=inputs_embeds,
+                image_features=image_features,
+            )
+            inputs_embeds = inputs_embeds.masked_scatter(
+                special_image_mask, image_features
+            )
 
         model_kwargs["inputs_embeds"] = inputs_embeds
         model_kwargs = super()._prepare_encoder_decoder_kwargs_for_generation(
