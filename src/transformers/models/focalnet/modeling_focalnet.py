@@ -25,7 +25,7 @@ from ...activations import ACT2FN
 from ...backbone_utils import BackboneMixin
 from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BackboneOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import ModelOutput, auto_docstring, logging
 from .configuration_focalnet import FocalNetConfig
 
@@ -502,8 +502,6 @@ class FocalNetStage(GradientCheckpointingLayer):
         dim = embed_dim[index]
         out_dim = embed_dim[index + 1] if (index < self.num_stages - 1) else None
         downsample = FocalNetPatchEmbeddings if (index < self.num_stages - 1) else None
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths))

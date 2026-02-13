@@ -22,7 +22,7 @@ from torch import nn
 
 from ... import initialization as init
 from ...modeling_outputs import BaseModelOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import ModelOutput, auto_docstring, logging
 from .configuration_mgp_str import MgpstrConfig
 
@@ -238,8 +238,6 @@ class MgpstrLayer(nn.Module):
 class MgpstrEncoder(nn.Module):
     def __init__(self, config: MgpstrConfig):
         super().__init__()
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         dpr = python_linspace(0, config.drop_path_rate, config.num_hidden_layers)

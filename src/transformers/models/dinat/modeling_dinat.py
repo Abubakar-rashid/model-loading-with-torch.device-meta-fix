@@ -22,7 +22,7 @@ from torch import nn
 from ...activations import ACT2FN
 from ...backbone_utils import BackboneMixin
 from ...modeling_outputs import BackboneOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import (
     ModelOutput,
     OptionalDependencyNotAvailable,
@@ -535,8 +535,6 @@ class DinatEncoder(nn.Module):
         super().__init__()
         self.num_levels = len(config.depths)
         self.config = config
-
-        from ...modeling_utils import python_linspace
 
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths))
         self.levels = nn.ModuleList(

@@ -24,7 +24,7 @@ from ...activations import ACT2FN
 from ...backbone_utils import BackboneMixin
 from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BackboneOutput, BaseModelOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import auto_docstring, logging
 from .configuration_vitdet import VitDetConfig
 
@@ -599,8 +599,6 @@ class VitDetEncoder(nn.Module):
         super().__init__()
         self.config = config
         depth = config.num_hidden_layers
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         drop_path_rate = python_linspace(0, config.drop_path_rate, depth)

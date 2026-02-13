@@ -23,7 +23,7 @@ from torch.nn import functional as F
 from ... import initialization as init
 from ...activations import ACT2FN
 from ...modeling_layers import GradientCheckpointingLayer
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import ModelOutput, auto_docstring, logging, torch_int
 from .configuration_seggpt import SegGptConfig
 
@@ -535,8 +535,6 @@ class SegGptEncoder(nn.Module):
     def __init__(self, config: SegGptConfig) -> None:
         super().__init__()
         self.config = config
-
-        from ...modeling_utils import python_linspace
 
         dpr = python_linspace(0, config.drop_path_rate, config.num_hidden_layers)
         self.layers = nn.ModuleList(

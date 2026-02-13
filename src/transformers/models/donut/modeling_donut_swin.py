@@ -26,7 +26,7 @@ from torch import nn
 from ... import initialization as init
 from ...activations import ACT2FN
 from ...modeling_layers import GradientCheckpointingLayer
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import ModelOutput, auto_docstring, logging, torch_int
 from .configuration_donut_swin import DonutSwinConfig
 
@@ -832,8 +832,6 @@ class DonutSwinEncoder(nn.Module):
         super().__init__()
         self.num_layers = len(config.depths)
         self.config = config
-
-        from ...modeling_utils import python_linspace
 
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths))
         self.layers = nn.ModuleList(

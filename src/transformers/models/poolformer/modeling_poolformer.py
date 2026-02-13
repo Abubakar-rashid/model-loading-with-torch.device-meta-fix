@@ -24,7 +24,7 @@ from ...modeling_outputs import (
     BaseModelOutputWithNoAttention,
     ImageClassifierOutputWithNoAttention,
 )
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import auto_docstring, logging
 from .configuration_poolformer import PoolFormerConfig
 
@@ -213,8 +213,6 @@ class PoolFormerEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths))

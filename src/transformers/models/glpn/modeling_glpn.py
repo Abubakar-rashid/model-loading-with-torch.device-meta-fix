@@ -20,7 +20,7 @@ from torch import nn
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BaseModelOutput, DepthEstimatorOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import auto_docstring, logging
 from .configuration_glpn import GLPNConfig
 
@@ -332,8 +332,6 @@ class GLPNEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths))

@@ -34,7 +34,7 @@ from ...modeling_outputs import (
     Seq2SeqLMOutput,
     Seq2SeqModelOutput,
 )
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel, python_linspace
 from ...processing_utils import Unpack
 from ...utils import (
     TransformersKwargs,
@@ -598,8 +598,6 @@ class Florence2VisionBackbone(Florence2VisionPreTrainedModel):
                 f"len(self.num_heads) ({len(self.num_heads)}) == "
                 f"len(self.num_groups) ({len(self.num_groups)})"
             )
-
-        from ...modeling_utils import python_linspace
 
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths) * 2)
         depth_offset = 0

@@ -32,7 +32,7 @@ from ...modeling_outputs import (
     Seq2SeqLMOutput,
     Seq2SeqModelOutput,
 )
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel, python_linspace
 from ...processing_utils import MultiModalData, ProcessorMixin, Unpack
 from ...tokenization_utils_base import PreTokenizedInput, TextInput
 from ...utils import (
@@ -1549,12 +1549,10 @@ class Florence2VisionBackbone(Florence2VisionPreTrainedModel):
 
         if not (self.num_stages == len(self.num_heads) == len(self.num_groups)):
             raise ValueError(
-                f"Expected self.num_stages ({self.num_stages}) == "
+                f"Expected self.num_stages ({self.num_stages) == "
                 f"len(self.num_heads) ({len(self.num_heads)}) == "
                 f"len(self.num_groups) ({len(self.num_groups)})"
             )
-
-        from transformers.modeling_utils import python_linspace
 
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths) * 2)
         depth_offset = 0

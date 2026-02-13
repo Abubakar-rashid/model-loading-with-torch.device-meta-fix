@@ -28,7 +28,7 @@ from ...backbone_utils import BackboneMixin
 from ...file_utils import ModelOutput
 from ...modeling_layers import GradientCheckpointingLayer
 from ...modeling_outputs import BackboneOutput
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import auto_docstring, torch_int
 from .configuration_maskformer_swin import MaskFormerSwinConfig
 
@@ -755,8 +755,6 @@ class MaskFormerSwinEncoder(nn.Module):
         super().__init__()
         self.num_layers = len(config.depths)
         self.config = config
-
-        from ...modeling_utils import python_linspace
 
         dpr = python_linspace(0, config.drop_path_rate, sum(config.depths))
         self.layers = nn.ModuleList(

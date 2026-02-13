@@ -25,7 +25,7 @@ from ...modeling_outputs import (
     ImageClassifierOutput,
     SemanticSegmenterOutput,
 )
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import auto_docstring, logging
 from .configuration_segformer import SegformerConfig
 
@@ -359,8 +359,6 @@ class SegformerEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         drop_path_decays = python_linspace(0, config.drop_path_rate, sum(config.depths))

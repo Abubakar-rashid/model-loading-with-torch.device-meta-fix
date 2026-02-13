@@ -33,7 +33,7 @@ from ...modeling_outputs import (
     MaskedLMOutput,
     SemanticSegmenterOutput,
 )
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...pytorch_utils import compile_compatible_method_lru_cache
 from ...utils import auto_docstring, logging, torch_int
 from .configuration_beit import BeitConfig
@@ -697,8 +697,6 @@ class BeitEncoder(nn.Module):
             self.relative_position_bias = BeitRelativePositionBias(
                 config, window_size=window_size
             )
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         dpr = python_linspace(0, config.drop_path_rate, config.num_hidden_layers)

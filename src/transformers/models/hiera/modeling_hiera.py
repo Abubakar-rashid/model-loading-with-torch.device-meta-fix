@@ -30,7 +30,7 @@ from ...modeling_outputs import (
     ImageClassifierOutput,
     ModelOutput,
 )
-from ...modeling_utils import PreTrainedModel
+from ...modeling_utils import PreTrainedModel, python_linspace
 from ...utils import auto_docstring, logging, torch_int
 from .configuration_hiera import HieraConfig
 
@@ -640,8 +640,6 @@ class HieraEncoder(nn.Module):
     def __init__(self, config: HieraConfig) -> None:
         super().__init__()
         total_depth = sum(config.depths)
-
-        from ...modeling_utils import python_linspace
 
         # stochastic depth decay rule
         dpr = python_linspace(0, config.drop_path_rate, total_depth)
