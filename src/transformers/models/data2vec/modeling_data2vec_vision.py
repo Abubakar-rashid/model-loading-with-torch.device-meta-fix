@@ -716,8 +716,6 @@ class Data2VecVisionEncoder(nn.Module):
                 config, window_size=window_size
             )
 
-        from ...modeling_utils import python_linspace
-
         # stochastic depth decay rule
         dpr = python_linspace(0, config.drop_path_rate, config.num_hidden_layers)
         self.layer = nn.ModuleList(

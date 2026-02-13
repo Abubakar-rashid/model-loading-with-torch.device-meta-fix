@@ -330,8 +330,6 @@ class TimesformerLayer(GradientCheckpointingLayer):
 
         attention_type = config.attention_type
 
-        from ...modeling_utils import python_linspace
-
         drop_path_rates = python_linspace(
             0, config.drop_path_rate, config.num_hidden_layers
         )  # stochastic depth decay rule

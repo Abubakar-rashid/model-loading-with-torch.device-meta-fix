@@ -465,8 +465,6 @@ class CvtStage(nn.Module):
             dropout_rate=config.drop_rate[self.stage],
         )
 
-        from ...modeling_utils import python_linspace
-
         drop_path_rates = python_linspace(
             0, config.drop_path_rate[self.stage], config.depth[stage]
         )

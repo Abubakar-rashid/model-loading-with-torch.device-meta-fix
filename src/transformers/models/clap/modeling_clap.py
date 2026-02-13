@@ -892,8 +892,6 @@ class ClapAudioEncoder(nn.Module):
             config.patch_embeds_hidden_size * 2 ** (self.num_layers - 1)
         )
 
-        from ...modeling_utils import python_linspace
-
         drop_path_rate = python_linspace(0, config.drop_path_rate, sum(config.depths))
 
         grid_size = self.patch_embed.grid_size
