@@ -195,7 +195,7 @@ class ClapOutput(ModelOutput):
 
     def to_tuple(self) -> tuple[Any]:
         return tuple(
-            (self[k] if k not in ["text_model_output", "audio_model_output"] else getattr(self, k).to_tuple())
+            self[k] if k not in ["text_model_output", "audio_model_output"] else getattr(self, k).to_tuple()
             for k in self.keys()
         )
 
@@ -1005,21 +1005,15 @@ class ClapTextEmbeddings(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.register_buffer(
-            "position_ids",
-            torch.arange(config.max_position_embeddings).expand((1, -1)),
-            persistent=True,
+            "position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)), persistent=True
         )
         self.register_buffer(
-            "token_type_ids",
-            torch.zeros(self.position_ids.size(), dtype=torch.long),
-            persistent=True,
+            "token_type_ids", torch.zeros(self.position_ids.size(), dtype=torch.long), persistent=True
         )
 
         self.padding_idx = config.pad_token_id
         self.position_embeddings = nn.Embedding(
-            config.max_position_embeddings,
-            config.hidden_size,
-            padding_idx=self.padding_idx,
+            config.max_position_embeddings, config.hidden_size, padding_idx=self.padding_idx
         )
 
     def forward(
@@ -1084,10 +1078,7 @@ class ClapTextEmbeddings(nn.Module):
         sequence_length = input_shape[1]
 
         position_ids = torch.arange(
-            padding_idx + 1,
-            sequence_length + padding_idx + 1,
-            dtype=torch.long,
-            device=inputs_embeds.device,
+            padding_idx + 1, sequence_length + padding_idx + 1, dtype=torch.long, device=inputs_embeds.device
         )
         return position_ids.unsqueeze(0).expand(input_shape)
 
@@ -1286,10 +1277,7 @@ class ClapTextLayer(GradientCheckpointingLayer):
 
         outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
         layer_output = apply_chunking_to_forward(
-            self.feed_forward_chunk,
-            self.chunk_size_feed_forward,
-            self.seq_len_dim,
-            attention_output,
+            self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
         )
         outputs = (layer_output,) + outputs
 
