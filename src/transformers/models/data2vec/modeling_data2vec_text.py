@@ -57,12 +57,8 @@ class Data2VecTextEmbeddings(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = nn.Embedding(
-            config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id
-        )
-        self.token_type_embeddings = nn.Embedding(
-            config.type_vocab_size, config.hidden_size
-        )
+        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -100,9 +96,7 @@ class Data2VecTextEmbeddings(nn.Module):
                     input_ids, self.padding_idx, past_key_values_length
                 )
             else:
-                position_ids = self.create_position_ids_from_inputs_embeds(
-                    inputs_embeds, self.padding_idx
-                )
+                position_ids = self.create_position_ids_from_inputs_embeds(inputs_embeds, self.padding_idx)
 
         if input_ids is not None:
             input_shape = input_ids.size()
@@ -117,17 +111,11 @@ class Data2VecTextEmbeddings(nn.Module):
         if token_type_ids is None:
             if hasattr(self, "token_type_ids"):
                 # NOTE: We assume either pos ids to have bsz == 1 (broadcastable) or bsz == effective bsz (input_shape[0])
-                buffered_token_type_ids = self.token_type_ids.expand(
-                    position_ids.shape[0], -1
-                )
-                buffered_token_type_ids = torch.gather(
-                    buffered_token_type_ids, dim=1, index=position_ids
-                )
+                buffered_token_type_ids = self.token_type_ids.expand(position_ids.shape[0], -1)
+                buffered_token_type_ids = torch.gather(buffered_token_type_ids, dim=1, index=position_ids)
                 token_type_ids = buffered_token_type_ids.expand(batch_size, seq_length)
             else:
-                token_type_ids = torch.zeros(
-                    input_shape, dtype=torch.long, device=self.position_ids.device
-                )
+                token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=self.position_ids.device)
 
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
@@ -163,9 +151,7 @@ class Data2VecTextEmbeddings(nn.Module):
         return position_ids.unsqueeze(0).expand(input_shape)
 
     @staticmethod
-    def create_position_ids_from_input_ids(
-        input_ids, padding_idx, past_key_values_length=0
-    ):
+    def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_length=0):
         """
         Replace non-padding symbols with their position numbers. Position numbers begin at padding_idx+1. Padding symbols
         are ignored. This is modified from fairseq's `utils.make_positions`.
@@ -177,9 +163,7 @@ class Data2VecTextEmbeddings(nn.Module):
         """
         # The series of casts and type-conversions here are carefully balanced to both work with ONNX export and XLA.
         mask = input_ids.ne(padding_idx).int()
-        incremental_indices = (
-            torch.cumsum(mask, dim=1).type_as(mask) + past_key_values_length
-        ) * mask
+        incremental_indices = (torch.cumsum(mask, dim=1).type_as(mask) + past_key_values_length) * mask
         return incremental_indices.long() + padding_idx
 
 
@@ -203,9 +187,7 @@ def eager_attention_forward(
         attn_weights = attn_weights + attention_mask
 
     attn_weights = nn.functional.softmax(attn_weights, dim=-1)
-    attn_weights = nn.functional.dropout(
-        attn_weights, p=dropout, training=module.training
-    )
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
 
     attn_output = torch.matmul(attn_weights, value)
     attn_output = attn_output.transpose(1, 2).contiguous()
@@ -216,9 +198,7 @@ def eager_attention_forward(
 class Data2VecTextSelfAttention(nn.Module):
     def __init__(self, config, is_causal=False, layer_idx=None):
         super().__init__()
-        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
-            config, "embedding_size"
-        ):
+        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
                 f"heads ({config.num_attention_heads})"
@@ -291,9 +271,7 @@ class Data2VecTextSelfAttention(nn.Module):
 class Data2VecTextCrossAttention(nn.Module):
     def __init__(self, config, is_causal=False, layer_idx=None):
         super().__init__()
-        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
-            config, "embedding_size"
-        ):
+        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
             raise ValueError(
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
                 f"heads ({config.num_attention_heads})"
@@ -332,26 +310,14 @@ class Data2VecTextCrossAttention(nn.Module):
         # get query proj
         query_layer = self.query(hidden_states).view(*q_input_shape).transpose(1, 2)
 
-        is_updated = (
-            past_key_values.is_updated.get(self.layer_idx)
-            if past_key_values is not None
-            else False
-        )
+        is_updated = past_key_values.is_updated.get(self.layer_idx) if past_key_values is not None else False
         if past_key_values is not None and is_updated:
             # reuse k,v, cross_attentions
-            key_layer = past_key_values.cross_attention_cache.layers[
-                self.layer_idx
-            ].keys
-            value_layer = past_key_values.cross_attention_cache.layers[
-                self.layer_idx
-            ].values
+            key_layer = past_key_values.cross_attention_cache.layers[self.layer_idx].keys
+            value_layer = past_key_values.cross_attention_cache.layers[self.layer_idx].values
         else:
-            key_layer = (
-                self.key(encoder_hidden_states).view(*kv_input_shape).transpose(1, 2)
-            )
-            value_layer = (
-                self.value(encoder_hidden_states).view(*kv_input_shape).transpose(1, 2)
-            )
+            key_layer = self.key(encoder_hidden_states).view(*kv_input_shape).transpose(1, 2)
+            value_layer = self.value(encoder_hidden_states).view(*kv_input_shape).transpose(1, 2)
 
             if past_key_values is not None:
                 # save all states to the cache
@@ -386,9 +352,7 @@ class Data2VecTextSelfOutput(nn.Module):
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
@@ -396,16 +360,10 @@ class Data2VecTextSelfOutput(nn.Module):
 
 
 class Data2VecTextAttention(nn.Module):
-    def __init__(
-        self, config, is_causal=False, layer_idx=None, is_cross_attention=False
-    ):
+    def __init__(self, config, is_causal=False, layer_idx=None, is_cross_attention=False):
         super().__init__()
         self.is_cross_attention = is_cross_attention
-        attention_class = (
-            Data2VecTextCrossAttention
-            if is_cross_attention
-            else Data2VecTextSelfAttention
-        )
+        attention_class = Data2VecTextCrossAttention if is_cross_attention else Data2VecTextSelfAttention
         self.self = attention_class(config, is_causal=is_causal, layer_idx=layer_idx)
         self.output = Data2VecTextSelfOutput(config)
 
@@ -419,9 +377,7 @@ class Data2VecTextAttention(nn.Module):
         cache_position: torch.Tensor | None = None,
         **kwargs: Unpack[TransformersKwargs],
     ) -> tuple[torch.Tensor]:
-        attention_mask = (
-            attention_mask if not self.is_cross_attention else encoder_attention_mask
-        )
+        attention_mask = attention_mask if not self.is_cross_attention else encoder_attention_mask
         attention_output, attn_weights = self.self(
             hidden_states,
             encoder_hidden_states=encoder_hidden_states,
@@ -456,9 +412,7 @@ class Data2VecTextOutput(nn.Module):
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(
-        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
@@ -470,16 +424,12 @@ class Data2VecTextLayer(GradientCheckpointingLayer):
         super().__init__()
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.seq_len_dim = 1
-        self.attention = Data2VecTextAttention(
-            config, is_causal=config.is_decoder, layer_idx=layer_idx
-        )
+        self.attention = Data2VecTextAttention(config, is_causal=config.is_decoder, layer_idx=layer_idx)
         self.is_decoder = config.is_decoder
         self.add_cross_attention = config.add_cross_attention
         if self.add_cross_attention:
             if not self.is_decoder:
-                raise ValueError(
-                    f"{self} should be used as a decoder model if cross attention is added"
-                )
+                raise ValueError(f"{self} should be used as a decoder model if cross attention is added")
             self.crossattention = Data2VecTextAttention(
                 config,
                 is_causal=False,
@@ -569,12 +519,7 @@ class Data2VecTextEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.layer = nn.ModuleList(
-            [
-                Data2VecTextLayer(config, layer_idx=i)
-                for i in range(config.num_hidden_layers)
-            ]
-        )
+        self.layer = nn.ModuleList([Data2VecTextLayer(config, layer_idx=i) for i in range(config.num_hidden_layers)])
 
     def forward(
         self,
@@ -670,17 +615,13 @@ class Data2VecTextModel(Data2VecTextPreTrainedModel):
 
         if use_cache and past_key_values is None:
             past_key_values = (
-                EncoderDecoderCache(
-                    DynamicCache(config=self.config), DynamicCache(config=self.config)
-                )
+                EncoderDecoderCache(DynamicCache(config=self.config), DynamicCache(config=self.config))
                 if encoder_hidden_states is not None or self.config.is_encoder_decoder
                 else DynamicCache(config=self.config)
             )
 
         if (input_ids is None) ^ (inputs_embeds is not None):
-            raise ValueError(
-                "You must specify exactly one of input_ids or inputs_embeds"
-            )
+            raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if input_ids is not None:
             device = input_ids.device
@@ -689,9 +630,7 @@ class Data2VecTextModel(Data2VecTextPreTrainedModel):
             device = inputs_embeds.device
             seq_length = inputs_embeds.shape[1]
 
-        past_key_values_length = (
-            past_key_values.get_seq_length() if past_key_values is not None else 0
-        )
+        past_key_values_length = past_key_values.get_seq_length() if past_key_values is not None else 0
         if cache_position is None:
             cache_position = torch.arange(
                 past_key_values_length,
@@ -728,9 +667,7 @@ class Data2VecTextModel(Data2VecTextPreTrainedModel):
             **kwargs,
         )
         sequence_output = encoder_outputs.last_hidden_state
-        pooled_output = (
-            self.pooler(sequence_output) if self.pooler is not None else None
-        )
+        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
 
         return BaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,
@@ -802,9 +739,7 @@ class Data2VecTextClassificationHead(nn.Module):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         classifier_dropout = (
-            config.classifier_dropout
-            if config.classifier_dropout is not None
-            else config.hidden_dropout_prob
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
         self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
@@ -819,9 +754,11 @@ class Data2VecTextClassificationHead(nn.Module):
         return x
 
 
-@auto_docstring(custom_intro="""
+@auto_docstring(
+    custom_intro="""
     Data2VecText Model with a `language modeling` head on top for CLM fine-tuning.
-    """)
+    """
+)
 class Data2VecTextForCausalLM(Data2VecTextPreTrainedModel, GenerationMixin):
     _tied_weights_keys = {
         "lm_head.decoder.weight": "data2vec_text.embeddings.word_embeddings.weight",
@@ -832,9 +769,7 @@ class Data2VecTextForCausalLM(Data2VecTextPreTrainedModel, GenerationMixin):
         super().__init__(config)
 
         if not config.is_decoder:
-            logger.warning(
-                "If you want to use `Data2VecTextLMHeadModel` as a standalone, add `is_decoder=True.`"
-            )
+            logger.warning("If you want to use `Data2VecTextLMHeadModel` as a standalone, add `is_decoder=True.`")
 
         self.data2vec_text = Data2VecTextModel(config, add_pooling_layer=False)
         self.lm_head = Data2VecTextLMHead(config)
@@ -908,11 +843,7 @@ class Data2VecTextForCausalLM(Data2VecTextPreTrainedModel, GenerationMixin):
 
         hidden_states = outputs.last_hidden_state
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
-        slice_indices = (
-            slice(-logits_to_keep, None)
-            if isinstance(logits_to_keep, int)
-            else logits_to_keep
-        )
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])
 
         loss = None
@@ -1001,9 +932,7 @@ class Data2VecTextForMaskedLM(Data2VecTextPreTrainedModel):
             loss_fct = CrossEntropyLoss()
 
             labels = labels.to(prediction_scores.device)
-            masked_lm_loss = loss_fct(
-                prediction_scores.view(-1, self.config.vocab_size), labels.view(-1)
-            )
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
 
         return MaskedLMOutput(
             loss=masked_lm_loss,
@@ -1013,10 +942,12 @@ class Data2VecTextForMaskedLM(Data2VecTextPreTrainedModel):
         )
 
 
-@auto_docstring(custom_intro="""
+@auto_docstring(
+    custom_intro="""
     Data2VecText Model transformer with a sequence classification/regression head on top (a linear layer on top of the
     pooled output) e.g. for GLUE tasks.
-    """)
+    """
+)
 class Data2VecTextForSequenceClassification(Data2VecTextPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1066,9 +997,7 @@ class Data2VecTextForSequenceClassification(Data2VecTextPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (
-                    labels.dtype == torch.long or labels.dtype == torch.int
-                ):
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -1148,28 +1077,12 @@ class Data2VecTextForMultipleChoice(Data2VecTextPreTrainedModel):
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
         """
-        num_choices = (
-            input_ids.shape[1] if input_ids is not None else inputs_embeds.shape[1]
-        )
+        num_choices = input_ids.shape[1] if input_ids is not None else inputs_embeds.shape[1]
 
-        flat_input_ids = (
-            input_ids.view(-1, input_ids.size(-1)) if input_ids is not None else None
-        )
-        flat_position_ids = (
-            position_ids.view(-1, position_ids.size(-1))
-            if position_ids is not None
-            else None
-        )
-        flat_token_type_ids = (
-            token_type_ids.view(-1, token_type_ids.size(-1))
-            if token_type_ids is not None
-            else None
-        )
-        flat_attention_mask = (
-            attention_mask.view(-1, attention_mask.size(-1))
-            if attention_mask is not None
-            else None
-        )
+        flat_input_ids = input_ids.view(-1, input_ids.size(-1)) if input_ids is not None else None
+        flat_position_ids = position_ids.view(-1, position_ids.size(-1)) if position_ids is not None else None
+        flat_token_type_ids = token_type_ids.view(-1, token_type_ids.size(-1)) if token_type_ids is not None else None
+        flat_attention_mask = attention_mask.view(-1, attention_mask.size(-1)) if attention_mask is not None else None
         flat_inputs_embeds = (
             inputs_embeds.view(-1, inputs_embeds.size(-2), inputs_embeds.size(-1))
             if inputs_embeds is not None
@@ -1214,9 +1127,7 @@ class Data2VecTextForTokenClassification(Data2VecTextPreTrainedModel):
 
         self.data2vec_text = Data2VecTextModel(config, add_pooling_layer=False)
         classifier_dropout = (
-            config.classifier_dropout
-            if config.classifier_dropout is not None
-            else config.hidden_dropout_prob
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)

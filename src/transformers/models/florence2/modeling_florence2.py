@@ -57,9 +57,7 @@ if is_torch_available():
 logger = logging.get_logger(__name__)
 
 
-def drop_path(
-    input: torch.Tensor, drop_prob: float = 0.0, training: bool = False
-) -> torch.Tensor:
+def drop_path(input: torch.Tensor, drop_prob: float = 0.0, training: bool = False) -> torch.Tensor:
     """
     Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -67,12 +65,8 @@ def drop_path(
     if drop_prob == 0.0 or not training:
         return input
     keep_prob = 1 - drop_prob
-    shape = (input.shape[0],) + (1,) * (
-        input.ndim - 1
-    )  # work with diff dim tensors, not just 2D ConvNets
-    random_tensor = keep_prob + torch.rand(
-        shape, dtype=input.dtype, device=input.device
-    )
+    shape = (input.shape[0],) + (1,) * (input.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
+    random_tensor = keep_prob + torch.rand(shape, dtype=input.dtype, device=input.device)
     random_tensor.floor_()  # binarize
     output = input.div(keep_prob) * random_tensor
     return output
@@ -102,9 +96,7 @@ class Florence2VisionLearnedAbsolutePositionEmbedding2D(nn.Module):
         num_pos = config.vision_config.max_position_embeddings
         embedding_dim = config.vision_config.embed_dim[-1]
         self.row_embeddings = nn.Embedding(num_pos, embedding_dim // 2)
-        self.column_embeddings = nn.Embedding(
-            num_pos, embedding_dim - (embedding_dim // 2)
-        )
+        self.column_embeddings = nn.Embedding(num_pos, embedding_dim - (embedding_dim // 2))
 
     def forward(self, pixel_values, pixel_mask=None):
         height, width = pixel_values.shape[-2:]
@@ -149,17 +141,13 @@ class Florence2VisionPositionalEmbeddingCosine1D(nn.Module):
         half_dim = embed_dim // 2
         emb = math.log(10000) / half_dim
         emb = torch.exp(torch.arange(half_dim, dtype=torch.int64).float() * -emb)
-        emb = torch.arange(max_positions, dtype=torch.float).unsqueeze(
-            1
-        ) * emb.unsqueeze(0)
+        emb = torch.arange(max_positions, dtype=torch.float).unsqueeze(1) * emb.unsqueeze(0)
         return torch.sin(emb), torch.cos(emb)
 
     def forward(self, seq_embeds: torch.Tensor) -> torch.Tensor:
         len_seq = seq_embeds.size(1)
         if len_seq > self.max_seq_len:
-            raise ValueError(
-                f"Maximum sequence length {self.max_seq_len}, got {len_seq}"
-            )
+            raise ValueError(f"Maximum sequence length {self.max_seq_len}, got {len_seq}")
         pos_embeds = self.pos_idx_to_embed[0:len_seq, :]
         return pos_embeds
 
@@ -193,9 +181,7 @@ class Florence2VisionConvEmbed(nn.Module):
         self.config = config
         self.stage_idx = stage_idx
         self.patch_size = config.patch_size[stage_idx]
-        self.in_channels = (
-            config.in_channels if stage_idx == 0 else config.embed_dim[stage_idx - 1]
-        )
+        self.in_channels = config.in_channels if stage_idx == 0 else config.embed_dim[stage_idx - 1]
         self.embed_dim = config.embed_dim[stage_idx]
         self.stride = config.patch_stride[stage_idx]
         self.padding = config.patch_padding[stage_idx]
@@ -247,9 +233,7 @@ def eager_attention_forward(
         attn_weights = attn_weights + attention_mask
 
     attn_weights = nn.functional.softmax(attn_weights, dim=-1)
-    attn_weights = nn.functional.dropout(
-        attn_weights, p=dropout, training=module.training
-    )
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
 
     attn_output = torch.matmul(attn_weights, value)
     attn_output = attn_output.transpose(1, 2).contiguous()
@@ -271,9 +255,7 @@ class Florence2VisionChannelAttention(nn.Module):
         batch_size, num_tokens, hidden_size = hidden_states.shape
 
         # Reshape for grouped channel attention
-        qkv = self.qkv(hidden_states).reshape(
-            batch_size, num_tokens, 3, self.groups, hidden_size // self.groups
-        )
+        qkv = self.qkv(hidden_states).reshape(batch_size, num_tokens, 3, self.groups, hidden_size // self.groups)
         qkv = qkv.permute(2, 0, 3, 4, 1)
         query, key, value = qkv.unbind(0)
 
@@ -318,14 +300,8 @@ class Florence2VisionChannelBlock(nn.Module):
             groups=dim_in,
         )
         self.norm1 = nn.LayerNorm(config.embed_dim[stage_idx])
-        self.channel_attn = Florence2VisionChannelAttention(
-            config=config, stage_idx=stage_idx
-        )
-        self.drop_path1 = (
-            Florence2VisionDropPath(drop_path_rate)
-            if drop_path_rate > 0.0
-            else nn.Identity()
-        )
+        self.channel_attn = Florence2VisionChannelAttention(config=config, stage_idx=stage_idx)
+        self.drop_path1 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
 
         self.conv2 = nn.Conv2d(
             dim_in,
@@ -336,11 +312,7 @@ class Florence2VisionChannelBlock(nn.Module):
         )
         self.norm2 = nn.LayerNorm(config.embed_dim[stage_idx])
         self.ffn = Florence2VisionMLP(config=config, stage_idx=stage_idx)
-        self.drop_path2 = (
-            Florence2VisionDropPath(drop_path_rate)
-            if drop_path_rate > 0.0
-            else nn.Identity()
-        )
+        self.drop_path2 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
 
     def forward(self, hidden_states: torch.Tensor):
         batch_size, embed_dim, height, width = hidden_states.shape
@@ -354,9 +326,7 @@ class Florence2VisionChannelBlock(nn.Module):
         hidden_states = self.norm1(hidden_states)
         hidden_states = self.channel_attn(hidden_states)
         hidden_states = residual + self.drop_path1(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(
-            batch_size, embed_dim, height, width
-        )
+        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
 
         # Second channel block: Depthwise Conv + FFN
         hidden_states = self.conv2(hidden_states) + hidden_states
@@ -367,9 +337,7 @@ class Florence2VisionChannelBlock(nn.Module):
         hidden_states = self.norm2(hidden_states)
         hidden_states = self.ffn(hidden_states)
         hidden_states = residual + self.drop_path2(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(
-            batch_size, embed_dim, height, width
-        )
+        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
 
         return hidden_states
 
@@ -395,9 +363,7 @@ class Florence2VisionWindowAttention(nn.Module):
         pad_left = pad_top = 0
         pad_right = (self.window_size - width % self.window_size) % self.window_size
         pad_bottom = (self.window_size - height % self.window_size) % self.window_size
-        hidden_states = F.pad(
-            hidden_states, (0, 0, pad_left, pad_right, pad_top, pad_bottom)
-        )
+        hidden_states = F.pad(hidden_states, (0, 0, pad_left, pad_right, pad_top, pad_bottom))
         _, padded_height, padded_width, _ = hidden_states.shape
 
         # Partition input into non-overlapping windows (for local spatial attention in DaViT)
@@ -410,14 +376,10 @@ class Florence2VisionWindowAttention(nn.Module):
             embed_dim,
         )
         windowed_hidden_states = hidden_states.permute(0, 1, 3, 2, 4, 5).contiguous()
-        windowed_hidden_states = windowed_hidden_states.view(
-            -1, self.window_size * self.window_size, embed_dim
-        )
+        windowed_hidden_states = windowed_hidden_states.view(-1, self.window_size * self.window_size, embed_dim)
 
         # Generate Q, K, V for each window
-        num_windows_per_batch, num_tokens_per_window, embed_dim = (
-            windowed_hidden_states.shape
-        )
+        num_windows_per_batch, num_tokens_per_window, embed_dim = windowed_hidden_states.shape
         qkv = self.qkv(windowed_hidden_states).reshape(
             num_windows_per_batch,
             num_tokens_per_window,
@@ -440,15 +402,11 @@ class Florence2VisionWindowAttention(nn.Module):
             attention_mask=None,
             scaling=self.scale,
         )
-        windowed_hidden_states = windowed_hidden_states.view(
-            num_windows_per_batch, num_tokens_per_window, embed_dim
-        )
+        windowed_hidden_states = windowed_hidden_states.view(num_windows_per_batch, num_tokens_per_window, embed_dim)
         windowed_hidden_states = self.proj(windowed_hidden_states)
 
         # Merge windows back to original spatial layout
-        windowed_hidden_states = windowed_hidden_states.view(
-            -1, self.window_size, self.window_size, embed_dim
-        )
+        windowed_hidden_states = windowed_hidden_states.view(-1, self.window_size, self.window_size, embed_dim)
         hidden_states = windowed_hidden_states.view(
             -1,
             padded_height // self.window_size,
@@ -482,14 +440,8 @@ class Florence2VisionSpatialBlock(nn.Module):
             groups=config.embed_dim[stage_idx],
         )
         self.norm1 = nn.LayerNorm(config.embed_dim[stage_idx])
-        self.window_attn = Florence2VisionWindowAttention(
-            config=config, stage_idx=stage_idx
-        )
-        self.drop_path1 = (
-            Florence2VisionDropPath(drop_path_rate)
-            if drop_path_rate > 0.0
-            else nn.Identity()
-        )
+        self.window_attn = Florence2VisionWindowAttention(config=config, stage_idx=stage_idx)
+        self.drop_path1 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
 
         self.conv2 = nn.Conv2d(
             config.embed_dim[stage_idx],
@@ -500,11 +452,7 @@ class Florence2VisionSpatialBlock(nn.Module):
         )
         self.norm2 = nn.LayerNorm(config.embed_dim[stage_idx])
         self.ffn = Florence2VisionMLP(config=config, stage_idx=stage_idx)
-        self.drop_path2 = (
-            Florence2VisionDropPath(drop_path_rate)
-            if drop_path_rate > 0.0
-            else nn.Identity()
-        )
+        self.drop_path2 = Florence2VisionDropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
 
     def forward(self, hidden_states: torch.Tensor):
         batch_size, embed_dim, height, width = hidden_states.shape
@@ -519,9 +467,7 @@ class Florence2VisionSpatialBlock(nn.Module):
         hidden_states = hidden_states.view(batch_size, height, width, embed_dim)
         hidden_states = self.window_attn(hidden_states)
         hidden_states = residual + self.drop_path1(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(
-            batch_size, embed_dim, height, width
-        )
+        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
 
         # Second spatial mixing block: Conv + FFN
         hidden_states = self.conv2(hidden_states) + hidden_states
@@ -532,9 +478,7 @@ class Florence2VisionSpatialBlock(nn.Module):
         hidden_states = self.norm2(hidden_states)
         hidden_states = self.ffn(hidden_states)
         hidden_states = residual + self.drop_path2(hidden_states)
-        hidden_states = hidden_states.transpose(1, 2).view(
-            batch_size, embed_dim, height, width
-        )
+        hidden_states = hidden_states.transpose(1, 2).view(batch_size, embed_dim, height, width)
 
         return hidden_states
 
@@ -649,16 +593,10 @@ class Florence2MultiModalProjector(nn.Module):
         super().__init__()
         self.vision_embedding_dim = config.vision_config.embed_dim[-1]
         self.vision_projection_dim = config.vision_config.projection_dim
-        self.image_projection = nn.Linear(
-            self.vision_embedding_dim, self.vision_projection_dim, bias=False
-        )
+        self.image_projection = nn.Linear(self.vision_embedding_dim, self.vision_projection_dim, bias=False)
         self.image_proj_norm = nn.LayerNorm(self.vision_projection_dim)
-        self.image_position_embed = Florence2VisionLearnedAbsolutePositionEmbedding2D(
-            config=config
-        )
-        self.visual_temporal_embed = Florence2VisionPositionalEmbeddingCosine1D(
-            config=config
-        )
+        self.image_position_embed = Florence2VisionLearnedAbsolutePositionEmbedding2D(config=config)
+        self.visual_temporal_embed = Florence2VisionPositionalEmbeddingCosine1D(config=config)
 
     def forward(self, image_features):
         position_features = image_features + self.image_position_embed(image_features)
@@ -669,19 +607,19 @@ class Florence2MultiModalProjector(nn.Module):
         visual_token_features = visual_token_features.unsqueeze(1)
         spatial_image_features = visual_token_features.mean(dim=2)
         temporal_image_features = visual_token_features.mean(dim=1)
-        image_features = torch.cat(
-            [spatial_image_features, temporal_image_features], dim=1
-        )
+        image_features = torch.cat([spatial_image_features, temporal_image_features], dim=1)
         image_features = self.image_projection(image_features)
         image_features = self.image_proj_norm(image_features)
         return image_features
 
 
 @dataclass
-@auto_docstring(custom_intro="""
+@auto_docstring(
+    custom_intro="""
     Base class for Florence-2 base model's outputs that also contains : pre-computed hidden states that can speed up sequential
     decoding.
-    """)
+    """
+)
 class Florence2Seq2SeqModelOutput(Seq2SeqModelOutput):
     r"""
     image_hidden_states (`torch.FloatTensor`, *optional*):
@@ -693,10 +631,12 @@ class Florence2Seq2SeqModelOutput(Seq2SeqModelOutput):
 
 
 @dataclass
-@auto_docstring(custom_intro="""
+@auto_docstring(
+    custom_intro="""
     Base class for Florence-2 model's outputs that also contains : pre-computed hidden states that can speed up sequential
     decoding.
-    """)
+    """
+)
 class Florence2Seq2SeqLMOutput(Seq2SeqLMOutput):
     r"""
     loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -741,9 +681,11 @@ class Florence2PreTrainedModel(PreTrainedModel):
             init.copy_(module.pos_idx_to_embed, pos_idx_to_embed)
 
 
-@auto_docstring(custom_intro="""
+@auto_docstring(
+    custom_intro="""
     Florence-2 is a vision model for captioning, detection, and segmentation.
-    """)
+    """
+)
 class Florence2Model(Florence2PreTrainedModel):
     _checkpoint_conversion_mapping = {}
 
@@ -773,9 +715,7 @@ class Florence2Model(Florence2PreTrainedModel):
             The tensors corresponding to the input images.
         """
         image_outputs = self.vision_tower(pixel_values, return_dict=True, **kwargs)
-        image_outputs.pooler_output = self.multi_modal_projector(
-            image_outputs.last_hidden_state
-        )
+        image_outputs.pooler_output = self.multi_modal_projector(image_outputs.last_hidden_state)
 
         return image_outputs
 
@@ -803,11 +743,7 @@ class Florence2Model(Florence2PreTrainedModel):
 
         n_image_tokens = special_image_mask.sum()
         n_image_features = image_features.shape[0] * image_features.shape[1]
-        special_image_mask = (
-            special_image_mask.unsqueeze(-1)
-            .expand_as(inputs_embeds)
-            .to(inputs_embeds.device)
-        )
+        special_image_mask = special_image_mask.unsqueeze(-1).expand_as(inputs_embeds).to(inputs_embeds.device)
         torch_compilable_check(
             inputs_embeds[special_image_mask].numel() == image_features.numel(),
             f"Image features and image tokens do not match, tokens: {n_image_tokens}, features: {n_image_features}",
@@ -834,44 +770,28 @@ class Florence2Model(Florence2PreTrainedModel):
         cache_position: torch.LongTensor | None = None,
         **kwargs,
     ) -> tuple | Florence2Seq2SeqModelOutput:
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if encoder_outputs is None:
             if (input_ids is None) ^ (inputs_embeds is not None):
-                raise ValueError(
-                    "You must specify exactly one of input_ids or inputs_embeds"
-                )
+                raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
             if inputs_embeds is None:
                 inputs_embeds = self.get_input_embeddings()(input_ids)
 
             if pixel_values is not None:
-                image_features = self.get_image_features(
-                    pixel_values, return_dict=True
-                ).pooler_output
-                image_features = image_features.to(
-                    inputs_embeds.device, inputs_embeds.dtype
-                )
+                image_features = self.get_image_features(pixel_values, return_dict=True).pooler_output
+                image_features = image_features.to(inputs_embeds.device, inputs_embeds.dtype)
                 special_image_mask = self.get_placeholder_mask(
                     input_ids,
                     inputs_embeds=inputs_embeds,
                     image_features=image_features,
                 )
-                inputs_embeds = inputs_embeds.masked_scatter(
-                    special_image_mask, image_features
-                )
+                inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
 
             encoder_outputs = self.language_model.encoder(
                 attention_mask=attention_mask,
@@ -923,9 +843,7 @@ class Florence2Model(Florence2PreTrainedModel):
             return super().get_encoder(modality=modality)
 
 
-def shift_tokens_right(
-    input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int
-):
+def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int):
     """
     Shift input ids one token to the right.
     """
@@ -941,9 +859,11 @@ def shift_tokens_right(
     return shifted_input_ids
 
 
-@auto_docstring(custom_intro="""
+@auto_docstring(
+    custom_intro="""
     Florence-2 is a vision model for captioning, detection, and segmentation.
-    """)
+    """
+)
 class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixin):
     _checkpoint_conversion_mapping = {}
     _tied_weights_keys = {
@@ -953,9 +873,7 @@ class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixi
     def __init__(self, config: Florence2Config):
         super().__init__(config)
         self.model = Florence2Model(config)
-        self.lm_head = nn.Linear(
-            config.text_config.hidden_size, config.text_config.vocab_size, bias=False
-        )
+        self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
         self.post_init()
 
     def get_input_embeddings(self):
@@ -1024,25 +942,15 @@ class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixi
         >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "A green car parked in front of a yellow building."
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
+        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
+            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if labels is not None:
             if use_cache:
-                logger.warning(
-                    "The `use_cache` argument is changed to `False` since `labels` is provided."
-                )
+                logger.warning("The `use_cache` argument is changed to `False` since `labels` is provided.")
             use_cache = False
             if decoder_input_ids is None and decoder_inputs_embeds is None:
                 decoder_input_ids = shift_tokens_right(
@@ -1071,11 +979,7 @@ class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixi
 
         hidden_states = outputs[0]
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
-        slice_indices = (
-            slice(-logits_to_keep, None)
-            if isinstance(logits_to_keep, int)
-            else logits_to_keep
-        )
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])
 
         loss = None
@@ -1161,20 +1065,14 @@ class Florence2ForConditionalGeneration(Florence2PreTrainedModel, GenerationMixi
             inputs_embeds = self.get_input_embeddings()(inputs_tensor)
 
         if pixel_values is not None:
-            image_features = self.get_image_features(
-                pixel_values, return_dict=True
-            ).pooler_output
-            image_features = image_features.to(
-                inputs_embeds.device, inputs_embeds.dtype
-            )
+            image_features = self.get_image_features(pixel_values, return_dict=True).pooler_output
+            image_features = image_features.to(inputs_embeds.device, inputs_embeds.dtype)
             special_image_mask = self.get_placeholder_mask(
                 inputs_tensor,
                 inputs_embeds=inputs_embeds,
                 image_features=image_features,
             )
-            inputs_embeds = inputs_embeds.masked_scatter(
-                special_image_mask, image_features
-            )
+            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
 
         model_kwargs["inputs_embeds"] = inputs_embeds
         model_kwargs = super()._prepare_encoder_decoder_kwargs_for_generation(
