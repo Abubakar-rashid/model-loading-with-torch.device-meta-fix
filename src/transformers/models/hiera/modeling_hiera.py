@@ -34,6 +34,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import auto_docstring, logging, torch_int
 from .configuration_hiera import HieraConfig
 
+
 logger = logging.get_logger(__name__)
 
 

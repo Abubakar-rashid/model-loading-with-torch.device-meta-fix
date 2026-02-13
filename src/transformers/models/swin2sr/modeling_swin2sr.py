@@ -28,6 +28,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import ModelOutput, auto_docstring, logging
 from .configuration_swin2sr import Swin2SRConfig
 
+
 logger = logging.get_logger(__name__)
 
 

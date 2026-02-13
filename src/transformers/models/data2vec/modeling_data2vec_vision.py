@@ -36,6 +36,7 @@ from ...pytorch_utils import compile_compatible_method_lru_cache
 from ...utils import auto_docstring, logging, torch_int
 from .configuration_data2vec_vision import Data2VecVisionConfig
 
+
 logger = logging.get_logger(__name__)
 
 

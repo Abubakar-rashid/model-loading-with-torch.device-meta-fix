@@ -30,6 +30,7 @@ from ...utils import (
 )
 from .configuration_timesformer import TimesformerConfig
 
+
 logger = logging.get_logger(__name__)
 
 

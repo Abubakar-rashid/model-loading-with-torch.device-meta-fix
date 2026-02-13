@@ -48,6 +48,7 @@ from ...utils.generic import can_return_tuple, merge_with_config_defaults
 from ...utils.output_capturing import capture_outputs
 from .configuration_data2vec_text import Data2VecTextConfig
 
+
 logger = logging.get_logger(__name__)
 
 

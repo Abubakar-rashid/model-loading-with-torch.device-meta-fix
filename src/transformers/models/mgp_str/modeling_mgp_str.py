@@ -26,6 +26,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import ModelOutput, auto_docstring, logging
 from .configuration_mgp_str import MgpstrConfig
 
+
 logger = logging.get_logger(__name__)
 
 

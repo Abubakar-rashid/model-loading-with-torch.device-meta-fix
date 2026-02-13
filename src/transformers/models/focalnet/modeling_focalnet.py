@@ -29,6 +29,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import ModelOutput, auto_docstring, logging
 from .configuration_focalnet import FocalNetConfig
 
+
 logger = logging.get_logger(__name__)
 
 

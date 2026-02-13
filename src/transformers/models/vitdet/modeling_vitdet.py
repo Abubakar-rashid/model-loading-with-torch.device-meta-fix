@@ -28,6 +28,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import auto_docstring, logging
 from .configuration_vitdet import VitDetConfig
 
+
 logger = logging.get_logger(__name__)
 
 

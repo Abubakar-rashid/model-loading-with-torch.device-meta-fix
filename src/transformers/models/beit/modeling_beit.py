@@ -38,6 +38,7 @@ from ...pytorch_utils import compile_compatible_method_lru_cache
 from ...utils import auto_docstring, logging, torch_int
 from .configuration_beit import BeitConfig
 
+
 logger = logging.get_logger(__name__)
 
 

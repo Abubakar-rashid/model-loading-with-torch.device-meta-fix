@@ -24,6 +24,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import auto_docstring, logging
 from .configuration_glpn import GLPNConfig
 
+
 logger = logging.get_logger(__name__)
 
 

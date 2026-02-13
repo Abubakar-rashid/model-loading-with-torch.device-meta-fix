@@ -44,6 +44,7 @@ from ...utils import (
 )
 from .configuration_clap import ClapAudioConfig, ClapConfig, ClapTextConfig
 
+
 logger = logging.get_logger(__name__)
 
 

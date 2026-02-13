@@ -145,6 +145,7 @@ from .utils.loading_report import LoadStateDictInfo, log_state_dict_report
 from .utils.output_capturing import _CAN_RECORD_REGISTRY, OutputRecorder
 from .utils.quantization_config import QuantizationMethod
 
+
 if is_accelerate_available():
     from accelerate.hooks import add_hook_to_module
     from accelerate.utils import extract_model_from_parallel

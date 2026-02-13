@@ -49,6 +49,7 @@ from ...utils.output_capturing import capture_outputs
 from ..auto import AutoModel
 from .configuration_florence2 import Florence2Config, Florence2VisionConfig
 
+
 if is_torch_available():
     import torch
 

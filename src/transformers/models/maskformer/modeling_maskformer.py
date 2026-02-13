@@ -43,6 +43,7 @@ from ..detr import DetrConfig
 from .configuration_maskformer import MaskFormerConfig
 from .configuration_maskformer_swin import MaskFormerSwinConfig
 
+
 if is_accelerate_available():
     from accelerate import PartialState
     from accelerate.utils import reduce

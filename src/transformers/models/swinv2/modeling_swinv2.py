@@ -29,6 +29,7 @@ from ...modeling_utils import PreTrainedModel
 from ...utils import ModelOutput, auto_docstring, logging, torch_int
 from .configuration_swinv2 import Swinv2Config
 
+
 logger = logging.get_logger(__name__)
 
 

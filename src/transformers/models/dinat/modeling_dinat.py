@@ -33,6 +33,7 @@ from ...utils import (
 )
 from .configuration_dinat import DinatConfig
 
+
 if is_natten_available():
     from natten.functional import natten2dav, natten2dqkrpb
 else:

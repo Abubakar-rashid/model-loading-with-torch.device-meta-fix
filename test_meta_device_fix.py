@@ -8,7 +8,9 @@ This script tests:
 """
 
 import sys
+
 import torch
+
 
 # Test 1: Verify python_linspace function
 print("=" * 80)
@@ -16,6 +18,7 @@ print("Test 1: Testing python_linspace helper function")
 print("=" * 80)
 
 from transformers.modeling_utils import python_linspace
+
 
 # Test basic functionality
 result = python_linspace(0, 1, 5)
